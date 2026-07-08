@@ -357,6 +357,25 @@ Manual validation checklist:
 14. Long-hold reset a device and verify only link state is cleared.
 ```
 
+## Development tooling and git hooks
+
+Tooling and git hooks are managed by [devenv](https://devenv.sh). The single configuration point is `devenv.nix`; per-tool settings live in `biome.json`, `ruff.toml`, `.clang-format`, and `.gitlint`. Do not add tool configuration anywhere else.
+
+```bash
+devenv shell   # installs pre-commit / commit-msg / pre-push hooks on first entry
+devenv test    # run every check (lint, format, tests, static analysis) on all files
+```
+
+Hook stages:
+
+```text
+pre-commit   nixfmt, ruff + ruff-format, biome, clang-format, hygiene checks, actionlint, ripsecrets
+commit-msg   gitlint: conventional commits (feat/fix/refactor/docs/test/chore/perf/ci), lowercase subject
+pre-push     pytest tools/, node --test (web-debug), pio test -e native, pio check (cppcheck)
+```
+
+The CI `lint` job runs the same hook set on all files, so pushes that bypass local hooks are still checked.
+
 ## Coding style
 
 ### C++ firmware
@@ -425,4 +444,5 @@ Web-debug still parses and displays current protocol packets.
 SPEC.md reflects the current behavior.
 Link, unlink, force relink, disconnect, reconnect, and stale-state behavior are not broken.
 The project still supports generic M5Stack-family devices through DeviceAdapter/config rather than target-specific protocol forks.
+devenv test passes (lint, format, host tests, and pio check on all files).
 ```

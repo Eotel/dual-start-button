@@ -66,6 +66,23 @@ pytest tools/
 CI (`.github/workflows/ci.yml`) runs `pytest tools/` on every push to `main`
 and every pull request.
 
+## Development environment
+
+開発ツールチェーンと git hooks は [devenv](https://devenv.sh) が供給します。設定の単一ソースは `devenv.nix` です。
+
+```bash
+devenv shell   # 初回エントリ時に hooks (pre-commit / commit-msg / pre-push) が自動インストールされる
+devenv test    # 全ファイルに対して lint / format / テスト / 静的解析を一括実行
+```
+
+| Stage | 内容 |
+| --- | --- |
+| pre-commit | nixfmt / ruff / biome / clang-format による format と lint、hygiene チェック、actionlint、secrets 検出 |
+| commit-msg | gitlint による conventional commits 検証(type: feat/fix/refactor/docs/test/chore/perf/ci、subject は小文字始まり) |
+| pre-push | `pytest tools/`、web-debug の `node --test`、`pio test -e native`、`pio check`(cppcheck) |
+
+CI の `lint` ジョブがローカルと同一の hook 一式を全ファイルに対して実行するため、hooks をバイパスした push も CI が検出します。
+
 ## Operational summary
 
 1. Flash the same firmware to all button devices.

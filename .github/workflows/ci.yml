@@ -6,6 +6,35 @@ on:
   pull_request:
 
 jobs:
+  # Runs the same hook set as local git hooks (single source: devenv.nix):
+  # default stage (lint/format/hygiene) + pre-push stage (tests, pio check),
+  # plus commit-message lint over the PR range.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-lint-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
+      - name: install devenv.sh
+        run: nix profile install nixpkgs#devenv
+      - name: run all hooks on all files
+        run: devenv test
+      - name: gitlint over PR commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: devenv shell -- gitlint --commits "origin/${BASE_REF}..HEAD"
+
   python:
     runs-on: ubuntu-latest
     steps:
