@@ -15,3 +15,50 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest
       - run: pytest tools/
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: run web-debug tests
+        working-directory: web-debug
+        run: node --test
+      - name: syntax-check web-debug modules
+        working-directory: web-debug
+        run: |
+          node --check app.js
+          node --check protocol.js
+          node --check start-condition.js
+
+  firmware-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-native-${{ runner.os }}
+      - run: pip install platformio
+      - run: pio test -e native -d firmware/pio
+
+  firmware-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-esp32-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -e m5atom_lite -d firmware/pio
