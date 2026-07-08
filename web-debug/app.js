@@ -156,6 +156,9 @@ function applyState(entry, dv) {
   if (prev && prev.seq === next.seq && prev.uptimeMs === next.uptimeMs) {
     return;
   }
+  // Reception bookkeeping (freshness, confirm-hold) belongs to the host layer,
+  // not the wire decoder (SPEC section 12).
+  next.lastReceivedAt = Date.now();
   if (next.pressed) {
     next.pressedSince = prev?.pressed ? prev.pressedSince : Date.now();
   }

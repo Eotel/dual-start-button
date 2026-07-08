@@ -180,6 +180,9 @@ void updateDisplay() {
   device.showText(l1, l2, l3);
 }
 
+// Long-hold-reset twin of makeClear() in link_control.h: the clear semantics
+// here (zeroed link, generation bump, persist, cyan 1200ms blink, Link publish)
+// must stay identical to the control-initiated UNLINK/FACTORY_RESET_LINK path.
 void clearLink(const char* reason) {
   linkGroupId = 0;
   linkSlot = 0;

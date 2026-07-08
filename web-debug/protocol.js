@@ -21,7 +21,7 @@ export const FLAG = {
 
 export const CONTROL_FLAG0 = 1 << 0;
 
-export function parseState(dv, now = Date.now()) {
+export function parseState(dv) {
   if (dv.byteLength !== 20) {
     throw new Error(`ButtonState must be 20 bytes, got ${dv.byteLength}`);
   }
@@ -42,7 +42,6 @@ export function parseState(dv, now = Date.now()) {
     deviceHash: dv.getUint32(10, true),
     linkGroupId: dv.getUint32(14, true),
     aux: dv.getUint16(18, true),
-    lastReceivedAt: now,
   };
 }
 

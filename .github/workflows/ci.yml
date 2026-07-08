@@ -26,12 +26,9 @@ jobs:
       - name: run web-debug tests
         working-directory: web-debug
         run: node --test
-      - name: syntax-check web-debug modules
+      - name: syntax-check app.js (browser-only module, not imported by tests)
         working-directory: web-debug
-        run: |
-          node --check app.js
-          node --check protocol.js
-          node --check start-condition.js
+        run: node --check app.js
 
   firmware-native:
     runs-on: ubuntu-latest
@@ -45,7 +42,7 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-native-${{ runner.os }}
+          key: pio-native-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
       - run: pip install platformio
       - run: pio test -e native -d firmware/pio
 
@@ -58,7 +55,9 @@ jobs:
           python-version: "3.12"
       - uses: actions/cache@v4
         with:
-          path: ~/.platformio
+          path: |
+            ~/.platformio
+            ~/.cache/pip
           key: pio-esp32-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
       - run: pip install platformio
       - run: pio run -e m5atom_lite -d firmware/pio

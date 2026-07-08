@@ -74,6 +74,30 @@ inline ControlOutcome makeReject(const LinkState& current, uint8_t cmd, const ch
   return o;
 }
 
+// UNLINK and FACTORY_RESET_LINK share the same clear semantics (clearLink()
+// in the original firmware): reset link fields, bump generation, persist,
+// cyan blink, B,P,R emission order. Only the result message differs.
+inline ControlOutcome makeClear(const LinkState& current, uint8_t cmd, const char* message) {
+  ControlOutcome o{};
+  o.ok = true;
+  o.cmd = cmd;
+  o.error_code = nullptr;
+  o.message = message;
+  o.state = current;
+  o.state.group_id = 0;
+  o.state.slot = 0;
+  o.state.generation = current.generation + 1;
+  o.persist = true;
+  o.publish_type = StateType::Link;
+  o.publish_aux = 0;
+  o.blink_r = 0;
+  o.blink_g = 64;
+  o.blink_b = 64;
+  o.blink_ms = 1200;
+  o.order = SideEffectOrder::BlinkPublishResult;
+  return o;
+}
+
 inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const LinkState& current) {
   ControlCommandV1 cmd{};
   if (!decodeControlCommand(data, len, cmd)) {
@@ -135,22 +159,7 @@ inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const Lin
         return makeReject(current, commandValue, "link_conflict",
                           "linked to different group; use force", 5, 1500);
       }
-      // clearLink(): reset link fields, bump generation, persist, blue-cyan blink.
-      o.ok = true;
-      o.error_code = nullptr;
-      o.message = "unlinked";
-      o.state.group_id = 0;
-      o.state.slot = 0;
-      o.state.generation = current.generation + 1;
-      o.persist = true;
-      o.publish_type = StateType::Link;
-      o.publish_aux = 0;
-      o.blink_r = 0;
-      o.blink_g = 64;
-      o.blink_b = 64;
-      o.blink_ms = 1200;
-      o.order = SideEffectOrder::BlinkPublishResult;
-      return o;
+      return makeClear(current, commandValue, "unlinked");
     }
 
     case ControlCommand::SetArmed: {
@@ -191,22 +200,7 @@ inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const Lin
         return makeReject(current, commandValue, "force_required",
                           "FACTORY_RESET_LINK requires force flag", 6, 1500);
       }
-      // clearLink(): same clear + blink as UNLINK, different message.
-      o.ok = true;
-      o.error_code = nullptr;
-      o.message = "factory reset link done";
-      o.state.group_id = 0;
-      o.state.slot = 0;
-      o.state.generation = current.generation + 1;
-      o.persist = true;
-      o.publish_type = StateType::Link;
-      o.publish_aux = 0;
-      o.blink_r = 0;
-      o.blink_g = 64;
-      o.blink_b = 64;
-      o.blink_ms = 1200;
-      o.order = SideEffectOrder::BlinkPublishResult;
-      return o;
+      return makeClear(current, commandValue, "factory reset link done");
     }
 
     default:

@@ -16,9 +16,6 @@ function loadVectors(name) {
 const buttonState = loadVectors('button_state.json');
 const control = loadVectors('control_command.json');
 
-// Deterministic clock so lastReceivedAt is assertable.
-const FIXED_NOW = 1_700_000_000_000;
-
 function hexToDataView(hex) {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < bytes.length; i += 1) {
@@ -51,7 +48,7 @@ test('protocol constants match the wire flag/command layout', () => {
 for (const vec of buttonState.valid) {
   test(`parseState decodes ButtonState vector: ${vec.name}`, () => {
     const dv = hexToDataView(vec.hex);
-    const state = parseState(dv, FIXED_NOW);
+    const state = parseState(dv);
     const e = vec.expect;
 
     // Raw fields.
@@ -72,26 +69,15 @@ for (const vec of buttonState.valid) {
     assert.equal(state.longPressed, Boolean(e.flags & FLAG.LONG_PRESSED));
     assert.equal(state.deviceConnectedFlag, Boolean(e.flags & FLAG.CONNECTED));
     assert.equal(state.error, Boolean(e.flags & FLAG.ERROR));
-
-    // Injected clock.
-    assert.equal(state.lastReceivedAt, FIXED_NOW);
   });
 }
-
-test('parseState defaults lastReceivedAt to the wall clock', () => {
-  const dv = hexToDataView(buttonState.valid[0].hex);
-  const before = Date.now();
-  const state = parseState(dv);
-  const after = Date.now();
-  assert.ok(state.lastReceivedAt >= before && state.lastReceivedAt <= after);
-});
 
 for (const vec of buttonState.invalid) {
   test(`parseState rejects wrong-length ButtonState: ${vec.name}`, () => {
     const dv = hexToDataView(vec.hex);
     const byteLength = vec.hex.length / 2;
     assert.throws(
-      () => parseState(dv, FIXED_NOW),
+      () => parseState(dv),
       (err) => {
         assert.ok(err instanceof Error);
         assert.ok(
