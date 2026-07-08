@@ -1,0 +1,397 @@
+{
+  "_comment": "Golden test vectors for the 20-byte little-endian ButtonState packet (SPEC.md section 8). hex is lowercase with no spaces; expect fields are raw numeric field values. Shared contract consumed by the Python, C++ (native), and JavaScript test suites.",
+  "valid": [
+    {
+      "name": "agents_md_sample",
+      "hex": "010216012a001027000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 2,
+        "flags": 22,
+        "link_slot": 1,
+        "seq": 42,
+        "uptime_ms": 10000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "type_state",
+      "hex": "010117010500e803000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 23,
+        "link_slot": 1,
+        "seq": 5,
+        "uptime_ms": 1000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "type_heartbeat",
+      "hex": "010216020600d007000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 2,
+        "flags": 22,
+        "link_slot": 2,
+        "seq": 6,
+        "uptime_ms": 2000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "type_boot",
+      "hex": "0103100000000000000078563412000000000000",
+      "expect": {
+        "version": 1,
+        "type": 3,
+        "flags": 16,
+        "link_slot": 0,
+        "seq": 0,
+        "uptime_ms": 0,
+        "device_hash": 305419896,
+        "link_group_id": 0,
+        "aux": 0
+      }
+    },
+    {
+      "name": "type_link",
+      "hex": "010414010700b80b000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 4,
+        "flags": 20,
+        "link_slot": 1,
+        "seq": 7,
+        "uptime_ms": 3000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "type_error",
+      "hex": "010530000800a00f000078563412000000000700",
+      "expect": {
+        "version": 1,
+        "type": 5,
+        "flags": 48,
+        "link_slot": 0,
+        "seq": 8,
+        "uptime_ms": 4000,
+        "device_hash": 305419896,
+        "link_group_id": 0,
+        "aux": 7
+      }
+    },
+    {
+      "name": "flag_pressed",
+      "hex": "010101010a006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 1,
+        "link_slot": 1,
+        "seq": 10,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flag_armed",
+      "hex": "010102010b006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 2,
+        "link_slot": 1,
+        "seq": 11,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flag_linked",
+      "hex": "010104010c006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 4,
+        "link_slot": 1,
+        "seq": 12,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flag_long_pressed",
+      "hex": "010108010d006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 8,
+        "link_slot": 1,
+        "seq": 13,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flag_connected",
+      "hex": "010110010e006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 14,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flag_error",
+      "hex": "010120010f006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 32,
+        "link_slot": 1,
+        "seq": 15,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "flags_all",
+      "hex": "01013f0210006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 63,
+        "link_slot": 2,
+        "seq": 16,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "unlinked",
+      "hex": "010110001400f401000078563412000000000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 0,
+        "seq": 20,
+        "uptime_ms": 500,
+        "device_hash": 305419896,
+        "link_group_id": 0,
+        "aux": 0
+      }
+    },
+    {
+      "name": "release_hold_ms",
+      "hex": "0101160115008813000078563412efcdab005203",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 22,
+        "link_slot": 1,
+        "seq": 21,
+        "uptime_ms": 5000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 850
+      }
+    },
+    {
+      "name": "error_code_in_aux",
+      "hex": "0105300216007017000078563412efcdab003412",
+      "expect": {
+        "version": 1,
+        "type": 5,
+        "flags": 48,
+        "link_slot": 2,
+        "seq": 22,
+        "uptime_ms": 6000,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 4660
+      }
+    },
+    {
+      "name": "seq_min",
+      "hex": "0101100100006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 0,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "seq_max",
+      "hex": "01011001ffff6400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 65535,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "uptime_min",
+      "hex": "010110011e000000000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 30,
+        "uptime_ms": 0,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "uptime_max",
+      "hex": "010110011f00ffffffff78563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 31,
+        "uptime_ms": 4294967295,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "device_hash_max",
+      "hex": "01011001200064000000ffffffffefcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 32,
+        "uptime_ms": 100,
+        "device_hash": 4294967295,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "link_group_id_max",
+      "hex": "0101140221006400000078563412ffffffff0000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 20,
+        "link_slot": 2,
+        "seq": 33,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 4294967295,
+        "aux": 0
+      }
+    },
+    {
+      "name": "aux_min",
+      "hex": "0101100122006400000078563412efcdab000000",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 34,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 0
+      }
+    },
+    {
+      "name": "aux_max",
+      "hex": "0101100123006400000078563412efcdab00ffff",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 16,
+        "link_slot": 1,
+        "seq": 35,
+        "uptime_ms": 100,
+        "device_hash": 305419896,
+        "link_group_id": 11259375,
+        "aux": 65535
+      }
+    },
+    {
+      "name": "all_max",
+      "hex": "01013f02ffffffffffffffffffffffffffffffff",
+      "expect": {
+        "version": 1,
+        "type": 1,
+        "flags": 63,
+        "link_slot": 2,
+        "seq": 65535,
+        "uptime_ms": 4294967295,
+        "device_hash": 4294967295,
+        "link_group_id": 4294967295,
+        "aux": 65535
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "empty",
+      "hex": "",
+      "reason": "0 bytes; ButtonState must be exactly 20 bytes"
+    },
+    {
+      "name": "short_19",
+      "hex": "010216012a001027000078563412efcdab0000",
+      "reason": "19 bytes; one short of 20"
+    },
+    {
+      "name": "long_21",
+      "hex": "010216012a001027000078563412efcdab00000000",
+      "reason": "21 bytes; one over 20"
+    }
+  ]
+}

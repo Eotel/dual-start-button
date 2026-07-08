@@ -11,3 +11,8 @@ devenv.local.yaml
 
 # Claude Code tool caches
 .impeccable/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
