@@ -11,6 +11,7 @@
 
 #include "link_control.h"
 #include "../generated/test_vectors.h"
+#include "../support/craft_control.h"
 
 using namespace dsb;
 
@@ -18,16 +19,6 @@ void setUp() {}
 void tearDown() {}
 
 // --- helpers ---------------------------------------------------------------
-
-static void craft(uint8_t out[CONTROL_COMMAND_SIZE], uint8_t command, uint8_t slot,
-                  uint8_t flags, uint32_t group_id, uint32_t value) {
-  out[0] = PROTOCOL_VERSION;
-  out[1] = command;
-  out[2] = slot;
-  out[3] = flags;
-  writeLe32(out + 4, group_id);
-  writeLe32(out + 8, value);
-}
 
 static const DsbControlVector* vec(const char* name) {
   for (size_t i = 0; i < kDsbControlValidCount; ++i) {
