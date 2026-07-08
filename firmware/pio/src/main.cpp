@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "protocol.h"
+#include "link_control.h"
 #include "DeviceAdapter.h"
 
 using namespace dsb;
@@ -62,6 +63,12 @@ void loadLink() {
   linkGroupId = prefs.getUInt("group", 0);
   linkSlot = prefs.getUChar("slot", 0);
   if (linkSlot > 2) linkSlot = 0;
+  // SPEC section 7: group 0 or slot 0 both mean unlinked. Normalize so the
+  // state machine's single unlinked check (group_id == 0) holds.
+  if (linkSlot == 0 || linkGroupId == 0) {
+    linkGroupId = 0;
+    linkSlot = 0;
+  }
   linkGeneration = prefs.getUInt("gen", 0);
 }
 
@@ -105,6 +112,7 @@ void publishState(StateType type, uint16_t aux = 0, bool notify = true) {
   s.version = PROTOCOL_VERSION;
   s.type = static_cast<uint8_t>(type);
   s.flags = currentFlags();
+  if (type == StateType::Error) s.flags |= FlagError;
   s.link_slot = linkSlot;
   s.seq = ++seq;
   s.uptime_ms = millis();
@@ -179,117 +187,45 @@ void updateDisplay() {
   device.showText(l1, l2, l3);
 }
 
-void clearLink(const char* reason) {
-  linkGroupId = 0;
-  linkSlot = 0;
-  ++linkGeneration;
-  saveLink();
-  refreshDeviceInfoCharacteristic();
-  device.blinkStatus(0, 64, 64, 1200);
-  publishState(StateType::Link, 0, true);
-  Serial.printf("link cleared: %s\n", reason ? reason : "");
-}
-
-void handleControlBytes(const uint8_t* data, size_t len) {
-  ControlCommandV1 cmd{};
-  if (!decodeControlCommand(data, len, cmd)) {
-    sendControlResult(false, 0, "invalid_packet", "control command must be 12 bytes and version=1");
-    publishState(StateType::Error, 1, true);
-    device.blinkStatus(64, 32, 0, 1200);
-    return;
+void applyControlOutcome(const ControlOutcome& outcome) {
+  // Apply the resulting link state, then persist link fields if required.
+  linkGroupId = outcome.state.group_id;
+  linkSlot = outcome.state.slot;
+  linkGeneration = outcome.state.generation;
+  armed = outcome.state.armed;
+  if (outcome.persist) {
+    saveLink();
+    refreshDeviceInfoCharacteristic();
   }
 
-  const bool flag0 = (cmd.flags & ControlFlag0) != 0;
-  const uint8_t commandValue = cmd.command;
-
-  switch (static_cast<ControlCommand>(cmd.command)) {
-    case ControlCommand::Link: {
-      const bool force = flag0;
-      if (cmd.group_id == 0) {
-        sendControlResult(false, commandValue, "invalid_group", "LINK requires nonzero group_id");
-        publishState(StateType::Error, 2, true);
-        device.blinkStatus(64, 32, 0, 1200);
-        return;
-      }
-      if (cmd.slot != 1 && cmd.slot != 2) {
-        sendControlResult(false, commandValue, "invalid_slot", "LINK requires slot 1 or 2");
-        publishState(StateType::Error, 3, true);
-        device.blinkStatus(64, 32, 0, 1200);
-        return;
-      }
-      if (linkGroupId != 0 && linkGroupId != cmd.group_id && !force) {
-        sendControlResult(false, commandValue, "link_conflict", "already linked to another group; use force");
-        publishState(StateType::Error, 4, true);
-        device.blinkStatus(64, 32, 0, 1500);
-        return;
-      }
-      linkGroupId = cmd.group_id;
-      linkSlot = cmd.slot;
-      ++linkGeneration;
-      saveLink();
-      refreshDeviceInfoCharacteristic();
-      sendControlResult(true, commandValue, nullptr, "linked");
-      device.blinkStatus(0, 64, 0, 900);
-      publishState(StateType::Link, 0, true);
+  // Emit the ControlResult / ButtonState / blink in the exact order the
+  // original code did; the two notifying characteristics fire in different
+  // orders across commands. A blink_ms of 0 skips the blink.
+  switch (outcome.order) {
+    case SideEffectOrder::ResultPublishBlink:
+      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
+      publishState(outcome.publish_type, outcome.publish_aux, true);
+      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
       break;
-    }
-
-    case ControlCommand::Unlink: {
-      const bool force = flag0;
-      if (linkGroupId == 0) {
-        sendControlResult(true, commandValue, nullptr, "already unlinked");
-        publishState(StateType::Link, 0, true);
-        return;
-      }
-      if (cmd.group_id != 0 && cmd.group_id != linkGroupId && !force) {
-        sendControlResult(false, commandValue, "link_conflict", "linked to different group; use force");
-        publishState(StateType::Error, 5, true);
-        device.blinkStatus(64, 32, 0, 1500);
-        return;
-      }
-      clearLink("control unlink");
-      sendControlResult(true, commandValue, nullptr, "unlinked");
+    case SideEffectOrder::ResultBlinkPublish:
+      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
+      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
+      publishState(outcome.publish_type, outcome.publish_aux, true);
       break;
-    }
-
-    case ControlCommand::SetArmed: {
-      armed = flag0;
-      sendControlResult(true, commandValue, nullptr, armed ? "armed" : "disarmed");
-      publishState(StateType::State, 0, true);
-      device.blinkStatus(armed ? 0 : 64, armed ? 64 : 32, 0, 700);
-      break;
-    }
-
-    case ControlCommand::Identify: {
-      uint32_t duration = cmd.value;
-      if (duration == 0 || duration > 30000) duration = 3000;
-      sendControlResult(true, commandValue, nullptr, "identify");
-      device.blinkStatus(64, 0, 64, duration);
-      publishState(StateType::State, 0, true);
-      break;
-    }
-
-    case ControlCommand::FactoryResetLink: {
-      const bool force = flag0;
-      if (!force) {
-        sendControlResult(false, commandValue, "force_required", "FACTORY_RESET_LINK requires force flag");
-        publishState(StateType::Error, 6, true);
-        device.blinkStatus(64, 32, 0, 1500);
-        return;
-      }
-      clearLink("factory reset link");
-      sendControlResult(true, commandValue, nullptr, "factory reset link done");
-      break;
-    }
-
-    default:
-      sendControlResult(false, commandValue, "unknown_command", "unsupported control command");
-      publishState(StateType::Error, 7, true);
-      device.blinkStatus(64, 32, 0, 1200);
+    case SideEffectOrder::BlinkPublishResult:
+      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
+      publishState(outcome.publish_type, outcome.publish_aux, true);
+      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
       break;
   }
 
   updateStatusIndication();
+}
+
+void handleControlBytes(const uint8_t* data, size_t len) {
+  const LinkState current{linkGroupId, linkSlot, linkGeneration, armed};
+  const ControlOutcome outcome = evaluateControl(data, len, current);
+  applyControlOutcome(outcome);
 }
 
 class ServerCallbacks final : public NimBLEServerCallbacks {
@@ -392,8 +328,9 @@ void updateButton() {
 
   if (stablePressed && !longHoldResetTriggered && now - pressStartedAtMs >= DSB_LONG_HOLD_RESET_MS) {
     longHoldResetTriggered = true;
-    clearLink("long hold reset");
-    sendControlResult(true, static_cast<uint8_t>(ControlCommand::FactoryResetLink), nullptr, "long hold reset link done");
+    const LinkState current{linkGroupId, linkSlot, linkGeneration, armed};
+    applyControlOutcome(makeClear(current, static_cast<uint8_t>(ControlCommand::FactoryResetLink),
+                                  "long hold reset link done"));
   }
 }
 
@@ -425,7 +362,7 @@ void setup() {
 
   prefs.begin("dsb", false);
   deviceId = hexDeviceIdFromEfuse();
-  deviceHash = fnv1a32(deviceId);
+  deviceHash = fnv1a32(deviceId.c_str());
   deviceName = "DSB-" + last4(deviceId);
   loadLink();
 

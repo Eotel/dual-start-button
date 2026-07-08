@@ -11,3 +11,15 @@ devenv.local.yaml
 
 # Claude Code tool caches
 .impeccable/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# PlatformIO build artifacts
+firmware/pio/.pio/
+
+# Generated native-test vectors (regenerated from test-vectors/ by
+# firmware/pio/generate_test_vectors.py before every `pio test -e native`)
+firmware/pio/test/generated/

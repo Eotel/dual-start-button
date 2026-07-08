@@ -1,0 +1,178 @@
+{
+  "_comment": "Golden test vectors for the 12-byte little-endian Control packet (SPEC.md section 9). hex is lowercase with no spaces; expect fields are raw numeric field values. Shared contract consumed by the Python, C++ (native), and JavaScript test suites.",
+  "valid": [
+    {
+      "name": "link_slot1",
+      "hex": "01010100efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 1,
+        "slot": 1,
+        "flags": 0,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "link_slot1_force",
+      "hex": "01010101efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 1,
+        "slot": 1,
+        "flags": 1,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "link_slot2",
+      "hex": "01010200efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 1,
+        "slot": 2,
+        "flags": 0,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "link_slot2_force",
+      "hex": "01010201efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 1,
+        "slot": 2,
+        "flags": 1,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "unlink",
+      "hex": "01020000efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 2,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "unlink_force",
+      "hex": "01020001efcdab0000000000",
+      "expect": {
+        "version": 1,
+        "command": 2,
+        "slot": 0,
+        "flags": 1,
+        "group_id": 11259375,
+        "value": 0
+      }
+    },
+    {
+      "name": "unlink_group0",
+      "hex": "010200000000000000000000",
+      "expect": {
+        "version": 1,
+        "command": 2,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 0,
+        "value": 0
+      }
+    },
+    {
+      "name": "set_armed_true",
+      "hex": "010300010000000000000000",
+      "expect": {
+        "version": 1,
+        "command": 3,
+        "slot": 0,
+        "flags": 1,
+        "group_id": 0,
+        "value": 0
+      }
+    },
+    {
+      "name": "set_armed_false",
+      "hex": "010300000000000000000000",
+      "expect": {
+        "version": 1,
+        "command": 3,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 0,
+        "value": 0
+      }
+    },
+    {
+      "name": "identify_3000",
+      "hex": "0104000000000000b80b0000",
+      "expect": {
+        "version": 1,
+        "command": 4,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 0,
+        "value": 3000
+      }
+    },
+    {
+      "name": "factory_reset_link",
+      "hex": "010500000000000000000000",
+      "expect": {
+        "version": 1,
+        "command": 5,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 0,
+        "value": 0
+      }
+    },
+    {
+      "name": "group_id_max",
+      "hex": "01010100ffffffff00000000",
+      "expect": {
+        "version": 1,
+        "command": 1,
+        "slot": 1,
+        "flags": 0,
+        "group_id": 4294967295,
+        "value": 0
+      }
+    },
+    {
+      "name": "value_max",
+      "hex": "0104000000000000ffffffff",
+      "expect": {
+        "version": 1,
+        "command": 4,
+        "slot": 0,
+        "flags": 0,
+        "group_id": 0,
+        "value": 4294967295
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "wrong_length_11",
+      "hex": "01010100efcdab00000000",
+      "reason": "11 bytes; Control must be exactly 12 bytes"
+    },
+    {
+      "name": "wrong_length_13",
+      "hex": "01010100efcdab000000000000",
+      "reason": "13 bytes; one over 12"
+    },
+    {
+      "name": "wrong_version_2",
+      "hex": "02010100efcdab0000000000",
+      "reason": "version=2; firmware decodeControlCommand rejects version != 1"
+    }
+  ]
+}

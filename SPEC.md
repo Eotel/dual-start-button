@@ -246,6 +246,8 @@ Types:
 5 error       error state or rejected command
 ```
 
+Packets with `type == 5 (error)` set flags bit5 in addition to the current state bits.
+
 ### Notification policy
 
 Device sends ButtonState Notify:
@@ -306,11 +308,25 @@ else reject conflict
 
 ### IDENTIFY behavior
 
-Device flashes LED/display for `value` milliseconds. Default duration is 3000ms.
+Device flashes LED/display for `value` milliseconds. `value == 0` or `value > 30000` uses the default duration of 3000ms.
 
 ### FACTORY_RESET_LINK behavior
 
-Clears `link_group_id`, `link_slot`, `link_generation`. This does not erase firmware or device_id.
+Clears `link_group_id` and `link_slot` and increments `link_generation`, so hosts observe the reset as a link change (`link_generation` is monotonic across all link mutations, including resets). This does not erase firmware or device_id.
+
+### Receiver validation policy
+
+v1 receivers validate only the fields each command defines:
+
+```text
+slot      validated for LINK only; other commands ignore it
+group_id  validated for LINK and UNLINK only; SET_ARMED, IDENTIFY,
+          and FACTORY_RESET_LINK ignore it
+value     used by IDENTIFY only; other commands ignore it
+flags     only bit0 is defined; receivers ignore other bits
+```
+
+Hosts must send 0 in ignored fields.
 
 ## 10. ControlResult characteristic
 
