@@ -1,0 +1,46 @@
+#pragma once
+
+#ifndef DSB_FW_VERSION
+#define DSB_FW_VERSION "0.1.0"
+#endif
+
+#ifndef DSB_TARGET_NAME
+#define DSB_TARGET_NAME "m5stack-family"
+#endif
+
+#ifndef DSB_HEARTBEAT_MS
+#define DSB_HEARTBEAT_MS 1000
+#endif
+
+#ifndef DSB_DEBOUNCE_MS
+#define DSB_DEBOUNCE_MS 30
+#endif
+
+#ifndef DSB_LONG_HOLD_RESET_MS
+#define DSB_LONG_HOLD_RESET_MS 10000
+#endif
+
+#define DSB_BUTTON_SOURCE_A    0
+#define DSB_BUTTON_SOURCE_B    1
+#define DSB_BUTTON_SOURCE_C    2
+#define DSB_BUTTON_SOURCE_PWR  3
+#define DSB_BUTTON_SOURCE_GPIO 4
+
+#ifndef DSB_BUTTON_SOURCE
+#define DSB_BUTTON_SOURCE DSB_BUTTON_SOURCE_A
+#endif
+
+#ifndef DSB_BUTTON_GPIO
+#define DSB_BUTTON_GPIO 39
+#endif
+
+#ifndef DSB_BUTTON_ACTIVE_LEVEL
+#define DSB_BUTTON_ACTIVE_LEVEL 0
+#endif
+
+// GATT UUIDs
+#define DSB_SERVICE_UUID        "7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001"
+#define DSB_DEVICE_INFO_UUID    "7b1f0001-6d4f-4f4a-9a4f-2d0c7a7a0001"
+#define DSB_BUTTON_STATE_UUID   "7b1f0002-6d4f-4f4a-9a4f-2d0c7a7a0001"
+#define DSB_CONTROL_UUID        "7b1f0003-6d4f-4f4a-9a4f-2d0c7a7a0001"
+#define DSB_CONTROL_RESULT_UUID "7b1f0004-6d4f-4f4a-9a4f-2d0c7a7a0001"

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dual Start Button Debug</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Dual Start Button Debug</h1>
+      <p>任意のn台から2台をlinkし、BLE通知と開始条件を確認するための簡易Web Bluetoothツールです。</p>
+    </header>
+
+    <section class="panel">
+      <h2>Connection</h2>
+      <div class="actions">
+        <button id="addDeviceBtn">Add / Connect Device</button>
+        <button id="reconnectGrantedBtn">Reconnect Granted Devices</button>
+        <button id="newGroupBtn">New Group ID</button>
+        <label class="inline">
+          <input id="forceLinkCheck" type="checkbox" /> force link/unlink
+        </label>
+      </div>
+      <dl class="kv">
+        <dt>Group ID</dt>
+        <dd><code id="groupIdText"></code></dd>
+        <dt>Browser</dt>
+        <dd id="browserStatus"></dd>
+      </dl>
+    </section>
+
+    <section class="grid two">
+      <div class="panel slot" id="slot1Panel">
+        <h2>Slot 1</h2>
+        <div id="slot1State" class="slotState empty">未link</div>
+      </div>
+      <div class="panel slot" id="slot2Panel">
+        <h2>Slot 2</h2>
+        <div id="slot2State" class="slotState empty">未link</div>
+      </div>
+    </section>
+
+    <section class="panel start">
+      <h2>Start Condition</h2>
+      <div id="startCondition" class="startCondition ng">NOT READY</div>
+      <p id="startReason" class="muted"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Connected Devices</h2>
+      <div id="devices" class="devices"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Log</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <template id="deviceTemplate">
+    <article class="deviceCard">
+      <header>
+        <h3 class="deviceTitle"></h3>
+        <span class="badge connectionBadge"></span>
+      </header>
+      <dl class="kv small">
+        <dt>Device ID</dt><dd class="deviceId"></dd>
+        <dt>Hash</dt><dd class="deviceHash"></dd>
+        <dt>FW</dt><dd class="fw"></dd>
+        <dt>Model</dt><dd class="model"></dd>
+        <dt>Link</dt><dd class="linkInfo"></dd>
+        <dt>Pressed</dt><dd class="pressed"></dd>
+        <dt>Armed</dt><dd class="armed"></dd>
+        <dt>Seq</dt><dd class="seq"></dd>
+        <dt>Fresh</dt><dd class="fresh"></dd>
+      </dl>
+      <div class="actions wrap">
+        <button class="linkSlot1">Link as Slot 1</button>
+        <button class="linkSlot2">Link as Slot 2</button>
+        <button class="unlinkDevice">Unlink Device</button>
+        <button class="identifyDevice">Identify</button>
+        <button class="armDevice">Arm</button>
+        <button class="disarmDevice">Disarm</button>
+        <button class="disconnectDevice">Disconnect</button>
+      </div>
+      <details>
+        <summary>Raw</summary>
+        <pre class="raw"></pre>
+      </details>
+    </article>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>
