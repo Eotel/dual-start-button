@@ -3,3 +3,7 @@ line-length = 100
 
 [lint]
 extend-select = ["I"]
+
+[lint.isort]
+# tools/ scripts import sibling modules directly.
+known-first-party = ["decode_state"]

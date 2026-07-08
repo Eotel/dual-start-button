@@ -44,6 +44,13 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: devenv shell -- gitlint --commits "origin/${BASE_REF}..HEAD"
+      # Direct pushes to main bypass the PR range check (and possibly local
+      # hooks via --no-verify); lint the pushed range instead.
+      - name: gitlint over pushed commits
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          RANGE: ${{ github.event.before }}..${{ github.event.after }}
+        run: devenv shell -- gitlint --commits "$RANGE"
 
   python:
     runs-on: ubuntu-latest

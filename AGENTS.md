@@ -359,7 +359,7 @@ Manual validation checklist:
 
 ## Development tooling and git hooks
 
-Tooling and git hooks are managed by [devenv](https://devenv.sh). The single configuration point is `devenv.nix`; per-tool settings live in `biome.json`, `ruff.toml`, `.clang-format`, and `.gitlint`. Do not add tool configuration anywhere else.
+Tooling and git hooks are managed by [devenv](https://devenv.sh). The single configuration point is `devenv.nix`; per-tool settings live in each tool's native config file: `biome.json`, `ruff.toml`, `.clang-format`, `.gitlint`, and the `check_*` options in `firmware/pio/platformio.ini` for `pio check`. Do not add tool configuration anywhere else.
 
 ```bash
 devenv shell   # installs pre-commit / commit-msg / pre-push hooks on first entry
