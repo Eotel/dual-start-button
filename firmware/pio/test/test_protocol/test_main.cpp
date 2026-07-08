@@ -5,11 +5,11 @@
 // hand-copies a vector value: the same bytes drive the Python, JS, and C++
 // suites, so a divergence in any implementation shows up as a failure.
 
-#include <unity.h>
 #include <string.h>
+#include <unity.h>
 
-#include "protocol.h"
 #include "../generated/test_vectors.h"
+#include "protocol.h"
 
 using namespace dsb;
 
@@ -65,8 +65,8 @@ void test_control_decode_rejects_invalid_vectors() {
 
 // FNV-1a 32-bit against values computed independently (in Python).
 void test_fnv1a32_known_values() {
-  TEST_ASSERT_EQUAL_UINT32(2166136261u, fnv1a32(""));            // offset basis
-  TEST_ASSERT_EQUAL_UINT32(663773663u, fnv1a32("A1B2C3D4E5F6")); // SPEC sample id
+  TEST_ASSERT_EQUAL_UINT32(2166136261u, fnv1a32(""));             // offset basis
+  TEST_ASSERT_EQUAL_UINT32(663773663u, fnv1a32("A1B2C3D4E5F6"));  // SPEC sample id
   TEST_ASSERT_EQUAL_UINT32(98073254u, fnv1a32("DSB"));
 }
 

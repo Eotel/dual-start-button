@@ -6,12 +6,12 @@
 // Where a shared JSON vector already encodes a packet we reuse its bytes;
 // stateful cases (current link != unlinked) are crafted inline.
 
-#include <unity.h>
 #include <string.h>
+#include <unity.h>
 
-#include "link_control.h"
 #include "../generated/test_vectors.h"
 #include "../support/craft_control.h"
+#include "link_control.h"
 
 using namespace dsb;
 
@@ -31,7 +31,9 @@ static LinkState linked(uint32_t group, uint8_t slot, uint32_t generation, bool 
   return LinkState{group, slot, generation, armed};
 }
 
-static LinkState unlinked() { return LinkState{0, 0, 0, true}; }
+static LinkState unlinked() {
+  return LinkState{0, 0, 0, true};
+}
 
 static void assert_state(const LinkState& expected, const LinkState& actual) {
   TEST_ASSERT_EQUAL_UINT32(expected.group_id, actual.group_id);
@@ -329,8 +331,7 @@ void test_wrong_length_is_invalid_packet() {
     if (v.len == CONTROL_COMMAND_SIZE) continue;  // handled by version test
     ControlOutcome o = evaluateControl(v.bytes, v.len, unlinked());
     assert_reject(o, 0, "invalid_packet", 1);
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        "control command must be 12 bytes and version=1", o.message, v.name);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("control command must be 12 bytes and version=1", o.message, v.name);
   }
 }
 

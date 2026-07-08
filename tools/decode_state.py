@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Decode a 20-byte Dual Start Button ButtonState packet from a hex string."""
+
 import argparse
 import struct
 
@@ -28,7 +29,9 @@ def decode(data: bytes) -> dict[str, object]:
     """
     if len(data) != 20:
         raise ValueError(f"expected 20 bytes, got {len(data)}")
-    version, typ, flags, slot, seq, uptime, device_hash, group, aux = struct.unpack("<BBBBHIIIH", data)
+    version, typ, flags, slot, seq, uptime, device_hash, group, aux = struct.unpack(
+        "<BBBBHIIIH", data
+    )
     active_flags = [name for bit, name in FLAGS if flags & bit]
     return {
         "version": version,

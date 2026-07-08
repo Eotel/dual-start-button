@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 namespace dsb {
 
@@ -17,12 +17,12 @@ enum class StateType : uint8_t {
 };
 
 enum StateFlags : uint8_t {
-  FlagPressed     = 1 << 0,
-  FlagArmed       = 1 << 1,
-  FlagLinked      = 1 << 2,
+  FlagPressed = 1 << 0,
+  FlagArmed = 1 << 1,
+  FlagLinked = 1 << 2,
   FlagLongPressed = 1 << 3,
-  FlagConnected   = 1 << 4,
-  FlagError       = 1 << 5,
+  FlagConnected = 1 << 4,
+  FlagError = 1 << 5,
 };
 
 enum class ControlCommand : uint8_t {
@@ -34,7 +34,7 @@ enum class ControlCommand : uint8_t {
 };
 
 enum ControlFlags : uint8_t {
-  ControlFlag0 = 1 << 0, // LINK/UNLINK: force, SET_ARMED: armed
+  ControlFlag0 = 1 << 0,  // LINK/UNLINK: force, SET_ARMED: armed
 };
 
 struct ButtonStateV1 {
@@ -63,9 +63,7 @@ inline uint16_t readLe16(const uint8_t* p) {
 }
 
 inline uint32_t readLe32(const uint8_t* p) {
-  return static_cast<uint32_t>(p[0]) |
-         (static_cast<uint32_t>(p[1]) << 8) |
-         (static_cast<uint32_t>(p[2]) << 16) |
+  return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
          (static_cast<uint32_t>(p[3]) << 24);
 }
 
@@ -113,4 +111,4 @@ inline uint32_t fnv1a32(const char* value) {
   return hash;
 }
 
-} // namespace dsb
+}  // namespace dsb

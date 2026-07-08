@@ -22,8 +22,7 @@ struct ControlEffects {
   virtual void applyLinkState(const LinkState& state) = 0;
   virtual void persistLink() = 0;
   virtual void refreshDeviceInfo() = 0;
-  virtual void emitControlResult(bool ok, uint8_t cmd, const char* error_code,
-                                 const char* message) = 0;
+  virtual void emitControlResult(bool ok, uint8_t cmd, const char* error_code, const char* message) = 0;
   virtual void emitButtonState(StateType type, uint16_t aux) = 0;
   virtual void blinkStatus(uint8_t r, uint8_t g, uint8_t b, uint32_t duration_ms) = 0;
 };

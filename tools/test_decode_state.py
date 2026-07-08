@@ -4,6 +4,7 @@ The vector files in test-vectors/ are the cross-implementation protocol
 contract (also consumed by the C++ and JavaScript suites). These tests only
 exercise the public surface: decode(), the CLI, and the vector files.
 """
+
 import json
 import struct
 import subprocess
@@ -11,7 +12,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from decode_state import decode
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -55,8 +55,15 @@ def test_button_state_hex_matches_expected_fields(case: dict) -> None:
     e = case["expect"]
     packed = struct.pack(
         "<BBBBHIIIH",
-        e["version"], e["type"], e["flags"], e["link_slot"], e["seq"],
-        e["uptime_ms"], e["device_hash"], e["link_group_id"], e["aux"],
+        e["version"],
+        e["type"],
+        e["flags"],
+        e["link_slot"],
+        e["seq"],
+        e["uptime_ms"],
+        e["device_hash"],
+        e["link_group_id"],
+        e["aux"],
     )
     assert packed == bytes.fromhex(case["hex"])
 
@@ -89,7 +96,12 @@ def test_control_hex_matches_expected_fields(case: dict) -> None:
     e = case["expect"]
     packed = struct.pack(
         "<BBBBII",
-        e["version"], e["command"], e["slot"], e["flags"], e["group_id"], e["value"],
+        e["version"],
+        e["command"],
+        e["slot"],
+        e["flags"],
+        e["group_id"],
+        e["value"],
     )
     assert packed == bytes.fromhex(case["hex"])
 
@@ -106,7 +118,8 @@ def test_control_invalid_rejected_by_contract(case: dict) -> None:
 def test_cli_decodes_agents_md_sample() -> None:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), AGENTS_MD_SAMPLE],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0
     assert "'type': 'heartbeat'" in result.stdout
@@ -117,7 +130,8 @@ def test_cli_decodes_agents_md_sample() -> None:
 def test_cli_wrong_length_exits_nonzero() -> None:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "01 02 03"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode != 0
     assert "expected 20 bytes, got 3" in result.stderr

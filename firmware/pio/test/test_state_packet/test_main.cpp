@@ -46,7 +46,7 @@ void test_long_hold_boundary_at_threshold() {
 // --- composeStateFlags -------------------------------------------------------
 
 static RuntimeState idle() {
-  return RuntimeState{/*pressed=*/false, /*armed=*/false, /*connected=*/false,
+  return RuntimeState{/*pressed=*/false,      /*armed=*/false, /*connected=*/false,
                       /*long_pressed=*/false, /*link_slot=*/0, /*link_group_id=*/0,
                       /*device_hash=*/0};
 }
@@ -89,8 +89,7 @@ void test_flags_error_bit_composed_only_for_error_type() {
   RuntimeState rt = idle();
   rt.armed = true;
   rt.connected = true;
-  TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected | FlagError,
-                          composeStateFlags(rt, StateType::Error));
+  TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected | FlagError, composeStateFlags(rt, StateType::Error));
   TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected, composeStateFlags(rt, StateType::State));
   TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected, composeStateFlags(rt, StateType::Heartbeat));
   TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected, composeStateFlags(rt, StateType::Boot));
@@ -130,11 +129,11 @@ void test_error_packet_carries_flag_error_bit5_on_the_wire() {
                                                 /*seq=*/7, /*uptime_ms=*/500, /*aux=*/4);
   uint8_t packet[BUTTON_STATE_SIZE];
   encodeButtonState(s, packet);
-  TEST_ASSERT_EQUAL_UINT8(5, packet[1]);                       // type=error
-  TEST_ASSERT_NOT_EQUAL(0, packet[2] & FlagError);             // bit5 set
+  TEST_ASSERT_EQUAL_UINT8(5, packet[1]);            // type=error
+  TEST_ASSERT_NOT_EQUAL(0, packet[2] & FlagError);  // bit5 set
   TEST_ASSERT_EQUAL_UINT8(FlagArmed | FlagConnected | FlagError, packet[2]);
-  TEST_ASSERT_EQUAL_UINT8(4, packet[18]);                      // aux lo (error code)
-  TEST_ASSERT_EQUAL_UINT8(0, packet[19]);                      // aux hi
+  TEST_ASSERT_EQUAL_UINT8(4, packet[18]);  // aux lo (error code)
+  TEST_ASSERT_EQUAL_UINT8(0, packet[19]);  // aux hi
 }
 
 // --- nextSeq -----------------------------------------------------------------
