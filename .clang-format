@@ -1,7 +1,6 @@
-# Matches the existing firmware style: 2-space indent, attached braces,
-# left-aligned pointers, generous line length to avoid churn.
+# Matches the existing firmware style: Google base (2-space indent, attached
+# braces) with left-aligned pointers and a generous line length to avoid churn.
 BasedOnStyle: Google
-IndentWidth: 2
 ColumnLimit: 120
 DerivePointerAlignment: false
 PointerAlignment: Left

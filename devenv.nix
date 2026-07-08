@@ -1,13 +1,12 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 let
   # pytest and PlatformIO live in the devenv-managed venv (created on shell
-  # entry). Hooks reference this project-relative path so they work from any
-  # shell once `devenv shell` has run at least once. Upstream pip PlatformIO
-  # is used instead of pkgs.platformio-core because the nixpkgs package
-  # patches tool resolution and cannot find the host compiler for the native
-  # test env; pip also matches what CI installs.
-  venvBin = ".devenv/state/venv/bin";
+  # entry), so hooks work from any shell once `devenv shell` has run at least
+  # once. Upstream pip PlatformIO is used instead of pkgs.platformio-core
+  # because the nixpkgs package patches tool resolution and cannot find the
+  # host compiler for the native test env; pip also matches what CI installs.
+  venvBin = "${config.devenv.state}/venv/bin";
 
   # PlatformIO's native env compiles host tests with `gcc`/`g++`. Inside the
   # devenv shell on darwin, /usr/bin/gcc (an xcrun shim) fails because
@@ -18,6 +17,15 @@ let
     ln -s ${pkgs.stdenv.cc}/bin/cc $out/bin/gcc
     ln -s ${pkgs.stdenv.cc}/bin/c++ $out/bin/g++
   '';
+
+  # Shared shape of the pre-push hooks (tests + static analysis).
+  prePushHook = {
+    enable = true;
+    language = "system";
+    pass_filenames = false;
+    always_run = true;
+    stages = [ "pre-push" ];
+  };
 in
 {
   # Toolchain for manual runs; hook entries reference the same packages, so
@@ -53,8 +61,9 @@ in
     ruff-format.enable = true;
     clang-format = {
       enable = true;
-      # Same clang-format as the shell's pkgs.clang-tools, so manual runs and
-      # the hook can never disagree on formatting.
+      # The hook's default resolves to a newer clang-tools than the shell's
+      # pkgs.clang-tools (observed 22.x vs 21.x); pin so manual runs and the
+      # hook cannot disagree on formatting.
       package = pkgs.clang-tools;
       types_or = [
         "c"
@@ -63,7 +72,6 @@ in
     };
     biome = {
       enable = true;
-      package = pkgs.biome;
       args = [ "--no-errors-on-unmatched" ];
     };
 
@@ -73,6 +81,8 @@ in
       enable = true;
       # Preserve markdown hard line breaks (trailing double space).
       args = [ "--markdown-linebreak-ext=md" ];
+      # The hook's default stages include pre-push and manual; pin to the
+      # commit stage like the other formatters.
       stages = [ "pre-commit" ];
     };
     check-yaml.enable = true;
@@ -82,48 +92,25 @@ in
     ripsecrets.enable = true;
 
     # --- commit message (commit-msg stage) ---
-    gitlint = {
-      enable = true;
-      package = pkgs.gitlint;
-    };
+    gitlint.enable = true;
 
     # --- fast host-runnable tests + C++ static analysis (pre-push stage) ---
-    pytest-tools = {
-      enable = true;
+    pytest-tools = prePushHook // {
       name = "pytest (tools)";
       entry = "${venvBin}/pytest tools/";
-      language = "system";
-      pass_filenames = false;
-      always_run = true;
-      stages = [ "pre-push" ];
     };
-    node-test-web-debug = {
-      enable = true;
+    node-test-web-debug = prePushHook // {
       name = "node --test (web-debug)";
       # Glob form: node treats a bare directory argument as a module path.
       entry = "${pkgs.nodejs}/bin/node --test web-debug/*.test.js";
-      language = "system";
-      pass_filenames = false;
-      always_run = true;
-      stages = [ "pre-push" ];
     };
-    pio-test-native = {
-      enable = true;
+    pio-test-native = prePushHook // {
       name = "pio test -e native";
       entry = "${venvBin}/pio test -e native -d firmware/pio";
-      language = "system";
-      pass_filenames = false;
-      always_run = true;
-      stages = [ "pre-push" ];
     };
-    pio-check = {
-      enable = true;
+    pio-check = prePushHook // {
       name = "pio check (cppcheck)";
       entry = "${venvBin}/pio check -e native -e m5atom_lite -d firmware/pio --fail-on-defect medium --fail-on-defect high";
-      language = "system";
-      pass_filenames = false;
-      always_run = true;
-      stages = [ "pre-push" ];
     };
   };
 
