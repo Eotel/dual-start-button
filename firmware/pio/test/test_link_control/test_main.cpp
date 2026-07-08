@@ -282,6 +282,46 @@ void test_factory_reset_force_clears() {
   assert_state(linked(0, 0, 5, true), o.state);
 }
 
+// --- receiver validation policy (SPEC section 9) ----------------------------
+// v1 receivers ignore slot for non-LINK commands, group_id for
+// SET_ARMED/IDENTIFY/FACTORY_RESET_LINK, and value for non-IDENTIFY commands.
+
+void test_unlink_ignores_nonzero_slot() {
+  uint8_t p[CONTROL_COMMAND_SIZE];
+  craft(p, (uint8_t)ControlCommand::Unlink, /*slot=*/1, 0, /*group=*/0, 0);
+  LinkState cur = linked(777, 1, 4, true);
+  ControlOutcome o = evaluateControl(p, sizeof(p), cur);
+  TEST_ASSERT_TRUE(o.ok);
+  TEST_ASSERT_EQUAL_STRING("unlinked", o.message);
+  assert_state(linked(0, 0, 5, true), o.state);
+}
+
+void test_set_armed_ignores_slot_and_group() {
+  uint8_t p[CONTROL_COMMAND_SIZE];
+  craft(p, (uint8_t)ControlCommand::SetArmed, /*slot=*/2, ControlFlag0, /*group=*/123, 0);
+  ControlOutcome o = evaluateControl(p, sizeof(p), unlinked());
+  TEST_ASSERT_TRUE(o.ok);
+  TEST_ASSERT_TRUE(o.state.armed);
+}
+
+void test_identify_ignores_nonzero_slot() {
+  uint8_t p[CONTROL_COMMAND_SIZE];
+  craft(p, (uint8_t)ControlCommand::Identify, /*slot=*/2, 0, 0, /*value=*/3000);
+  ControlOutcome o = evaluateControl(p, sizeof(p), unlinked());
+  TEST_ASSERT_TRUE(o.ok);
+  TEST_ASSERT_EQUAL_UINT32(3000, o.blink_ms);
+}
+
+void test_factory_reset_ignores_nonzero_group() {
+  uint8_t p[CONTROL_COMMAND_SIZE];
+  craft(p, (uint8_t)ControlCommand::FactoryResetLink, 0, ControlFlag0, /*group=*/11259375, 0);
+  LinkState cur = linked(777, 1, 4, true);
+  ControlOutcome o = evaluateControl(p, sizeof(p), cur);
+  TEST_ASSERT_TRUE(o.ok);
+  TEST_ASSERT_EQUAL_STRING("factory reset link done", o.message);
+  assert_state(linked(0, 0, 5, true), o.state);
+}
+
 // --- unknown / malformed ---------------------------------------------------
 
 void test_unknown_command_rejected() {
@@ -336,6 +376,10 @@ int main() {
   RUN_TEST(test_identify_value_12345_kept);
   RUN_TEST(test_factory_reset_no_force_rejected);
   RUN_TEST(test_factory_reset_force_clears);
+  RUN_TEST(test_unlink_ignores_nonzero_slot);
+  RUN_TEST(test_set_armed_ignores_slot_and_group);
+  RUN_TEST(test_identify_ignores_nonzero_slot);
+  RUN_TEST(test_factory_reset_ignores_nonzero_group);
   RUN_TEST(test_unknown_command_rejected);
   RUN_TEST(test_wrong_length_is_invalid_packet);
   RUN_TEST(test_wrong_version_is_invalid_packet);

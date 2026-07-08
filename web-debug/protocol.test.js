@@ -90,6 +90,21 @@ for (const vec of buttonState.invalid) {
   });
 }
 
+test('parseState reads fields relative to a non-zero DataView offset', () => {
+  // Notifications can hand over views into a larger backing buffer;
+  // DataView getters are offset-relative, and this pins that assumption.
+  const vec = buttonState.valid[0];
+  const packet = hexToDataView(vec.hex);
+  const backing = new Uint8Array(packet.byteLength + 4);
+  backing.set(new Uint8Array(packet.buffer), 2);
+  const dv = new DataView(backing.buffer, 2, packet.byteLength);
+  const state = parseState(dv);
+  assert.equal(state.version, vec.expect.version);
+  assert.equal(state.seq, vec.expect.seq);
+  assert.equal(state.linkGroupId, vec.expect.link_group_id);
+  assert.equal(state.aux, vec.expect.aux);
+});
+
 for (const vec of control.valid) {
   test(`makeCommand encodes Control vector: ${vec.name}`, () => {
     const e = vec.expect;

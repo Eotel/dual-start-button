@@ -63,6 +63,12 @@ void loadLink() {
   linkGroupId = prefs.getUInt("group", 0);
   linkSlot = prefs.getUChar("slot", 0);
   if (linkSlot > 2) linkSlot = 0;
+  // SPEC section 7: group 0 or slot 0 both mean unlinked. Normalize so the
+  // state machine's single unlinked check (group_id == 0) holds.
+  if (linkSlot == 0 || linkGroupId == 0) {
+    linkGroupId = 0;
+    linkSlot = 0;
+  }
   linkGeneration = prefs.getUInt("gen", 0);
 }
 
@@ -106,6 +112,7 @@ void publishState(StateType type, uint16_t aux = 0, bool notify = true) {
   s.version = PROTOCOL_VERSION;
   s.type = static_cast<uint8_t>(type);
   s.flags = currentFlags();
+  if (type == StateType::Error) s.flags |= FlagError;
   s.link_slot = linkSlot;
   s.seq = ++seq;
   s.uptime_ms = millis();

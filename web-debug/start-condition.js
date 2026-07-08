@@ -22,7 +22,7 @@ export function evaluateStartCondition({ pair, slot1, slot2, now, staleMs, confi
   if (now - b.state.lastReceivedAt > staleMs) return { ok: false, reason: 'slot 2 state is stale' };
   if (!a.state.pressed) return { ok: false, reason: 'slot 1 is not pressed' };
   if (!b.state.pressed) return { ok: false, reason: 'slot 2 is not pressed' };
-  const since = Math.max(a.state.pressedSince || now, b.state.pressedSince || now);
+  const since = Math.max(a.state.pressedSince ?? now, b.state.pressedSince ?? now);
   const held = now - since;
   if (held < confirmHoldMs) return { ok: false, reason: `both pressed, confirming ${held}/${confirmHoldMs}ms` };
   return { ok: true, reason: `both buttons pressed and fresh; held ${held}ms` };

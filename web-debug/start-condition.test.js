@@ -229,6 +229,17 @@ test('pressedSince undefined on both sides → held 0, confirming', () => {
   });
 });
 
+test('pressedSince 0 is a valid timestamp, not "missing" (SPEC uses ??)', () => {
+  // With a zero-origin clock, pressedSince=0 and now=confirmHoldMs must
+  // satisfy the hold; `||` would treat 0 as missing and report held 0.
+  const slot1 = entry(1, { pressedSince: 0, lastReceivedAt: CONFIRM_HOLD_MS });
+  const slot2 = entry(2, { pressedSince: 0, lastReceivedAt: CONFIRM_HOLD_MS });
+  assert.deepEqual(
+    evaluateStartCondition(args({ slot1, slot2, now: CONFIRM_HOLD_MS })),
+    { ok: true, reason: 'both buttons pressed and fresh; held 300ms' },
+  );
+});
+
 test('connected=false wins even if state still reports pressed', () => {
   // Disconnect semantics: caller zeroes pressed, but the pure function must
   // already fail on connected before it ever inspects pressed/state.
