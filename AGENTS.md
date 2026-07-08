@@ -298,9 +298,9 @@ read ButtonState immediately after subscription
 allow link/unlink/force link/force unlink
 persist local pair metadata for convenience only
 toggle a slot's active state on each observed press down-edge
-treat the first observed state after (re)connect or relink as a baseline, never a toggle
+treat the first observed state after (re)connect as a baseline, never a toggle
 treat disconnect as not pressed
-reset a slot's active whenever its device binding or connection changes (disconnect, unlink, relink, new group)
+reset a slot's active whenever its device binding or connection changes (disconnect, unlink, relink, new group), seeding the baseline from the slot's last known pressed state when available
 treat stale state as invalid for start
 ```
 

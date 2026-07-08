@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { INITIAL_ACTIVE, reduceActive } from './active-state.js';
+import { INITIAL_ACTIVE, reduceActive, resetActive } from './active-state.js';
 
 // Feed a sequence of observed pressed samples and return the final tracker.
 function observe(samples, tracker = INITIAL_ACTIVE) {
@@ -46,6 +46,27 @@ test('repeated pressed samples (heartbeat while held) do not toggle again', () =
 
 test('repeated released samples (idle heartbeat) do not toggle', () => {
   assert.equal(observe([false, false, false]).active, false);
+});
+
+test('resetActive() with no known state equals the initial tracker', () => {
+  assert.deepEqual(resetActive(), INITIAL_ACTIVE);
+});
+
+test('reset seeded with released state: the very next press toggles', () => {
+  // Codex review: a press right after Reset Active / relink must not be
+  // swallowed as a baseline when the slot state is already known.
+  assert.equal(reduceActive(resetActive(false), true).active, true);
+});
+
+test('reset seeded with held state: no toggle until release and press', () => {
+  const held = resetActive(true);
+  assert.equal(reduceActive(held, true).active, false);
+  assert.equal(observe([false, true], held).active, true);
+});
+
+test('reset always clears active regardless of seed', () => {
+  assert.equal(resetActive(false).active, false);
+  assert.equal(resetActive(true).active, false);
 });
 
 test('reducer returns a new tracker and does not mutate its input', () => {

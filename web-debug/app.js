@@ -1,5 +1,5 @@
 import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
-import { INITIAL_ACTIVE, reduceActive } from './active-state.js';
+import { INITIAL_ACTIVE, reduceActive, resetActive } from './active-state.js';
 import { evaluateStartCondition } from './start-condition.js';
 
 const SERVICE_UUID = '7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001';
@@ -94,8 +94,13 @@ function linkedSlotsOf(deviceId) {
   return slots;
 }
 
-function resetActive(slot) {
-  slotActive[slot] = INITIAL_ACTIVE;
+// Reset a slot's active state. When the slot's device state is already known
+// (connected and received), seed the baseline from it so the very next press
+// toggles instead of being consumed as a baseline sample.
+function resetSlotActive(slot) {
+  const entry = slotEntry(slot);
+  const known = entry?.connected && entry.state ? entry.state.pressed : null;
+  slotActive[slot] = resetActive(known);
 }
 
 // Single owner of slot-binding changes: whenever a slot's device record
@@ -103,7 +108,7 @@ function resetActive(slot) {
 function setSlotRecord(slot, record) {
   if (slot === 1) pair.slot1 = record;
   if (slot === 2) pair.slot2 = record;
-  resetActive(slot);
+  resetSlotActive(slot);
   savePair();
 }
 
@@ -119,7 +124,7 @@ async function connectBluetoothDevice(bluetoothDevice) {
     if (entry.state) {
       entry.state.pressed = false;
     }
-    for (const slot of linkedSlotsOf(entry.info?.device_id)) resetActive(slot);
+    for (const slot of linkedSlotsOf(entry.info?.device_id)) resetSlotActive(slot);
     log(`disconnected ${entry.info?.device_id || bluetoothDevice.name || bluetoothDevice.id}`);
     render();
   });
@@ -363,14 +368,14 @@ function init() {
   $('#newGroupBtn').addEventListener('click', () => {
     if (!confirm('Create a new group ID and clear local slot assignments? Device-side links are not cleared.')) return;
     pair = { groupId: newGroupId(), slot1: null, slot2: null };
-    resetActive(1);
-    resetActive(2);
+    resetSlotActive(1);
+    resetSlotActive(2);
     savePair();
     render();
   });
   $('#resetActiveBtn').addEventListener('click', () => {
-    resetActive(1);
-    resetActive(2);
+    resetSlotActive(1);
+    resetSlotActive(2);
     log('active reset (both slots)');
     render();
   });

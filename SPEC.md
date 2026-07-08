@@ -453,7 +453,13 @@ Recommended logic:
 ```ts
 const STALE_MS = 1500;
 
-const INITIAL_ACTIVE: SlotActive = { active: false, prevPressed: null };
+// Reset: seed the baseline from the last known pressed value when the slot's
+// device state is available (connected and received); otherwise unknown.
+function resetActive(prevPressed: boolean | null = null): SlotActive {
+  return { active: false, prevPressed };
+}
+
+const INITIAL_ACTIVE: SlotActive = resetActive();
 
 // Feed every observed ButtonState sample of the device linked to the slot.
 function reduceActive(tracker: SlotActive, pressed: boolean): SlotActive {
@@ -478,8 +484,8 @@ function canStart(
 
 Active rules:
 
-- 最初に観測したサンプルはbaselineでありトグルしない。接続時に押しっぱなしのボタンでactiveは変化しない。
-- disconnect / unlink / (force) relink / new group作成で、そのslotの`SlotActive`を`INITIAL_ACTIVE`に戻す。
+- baselineが未知（`prevPressed = null`）の場合、最初に観測したサンプルはbaselineでありトグルしない。接続時に押しっぱなしのボタンでactiveは変化しない。
+- disconnect / unlink / (force) relink / new group作成 / 手動リセットで、そのslotのactiveを`resetActive(...)`に戻す。その時点でslotのデバイス状態が既知（connectedかつstate受信済み）なら、baselineを現在の`pressed`でseedする。これにより、リセットやrelinkの直後の押下もトグルとして扱われる。状態が未知（disconnect等）ならbaselineはnull。
 - staleはactiveを保持したまま開始をブロックし、freshに戻れば判定に復帰する。
 - down通知を1回失っても、押下が継続していれば次のheartbeatのpressed=trueがdown-edgeとして観測される。downとupの両方を失った短い押下は取りこぼしうるため、hostは手動のactiveリセット操作を回復手段として提供する。
 
@@ -633,6 +639,7 @@ Web Bluetooth requires a compatible browser and a secure context. `localhost` is
 | Release both buttons | Start condition remains true（activeは保持） |
 | Press slot1 again while ready | Slot1 active=no, start condition false |
 | Reset Active | Both slots active=no, start condition false |
+| Press immediately after Reset Active | Slot becomes active（baselineは既知のstateからseed済み） |
 | Hold button while connecting | First observed state is a baseline, no toggle |
 | Disconnect one active slot | Its active resets, start condition false, stale/connected state shown |
 | Reconnect and press once | Slot becomes active again |
