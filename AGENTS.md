@@ -323,6 +323,7 @@ Default host constants:
 ```text
 STALE_MS = 1500
 CONFIRM_HOLD_MS = 300
+CONTROL_RESULT_TIMEOUT_MS = 3000
 ```
 
 ## Debugging and validation

@@ -51,7 +51,7 @@ export function describeControlError(result) {
   const message = result?.message || '';
   const base = message ? `${code}: ${message}` : code;
   if (code === 'link_conflict') {
-    return `${base} — enable "Force link" to overwrite the existing link`;
+    return `${base} — enable "force link/unlink" to overwrite the existing link`;
   }
   return base;
 }

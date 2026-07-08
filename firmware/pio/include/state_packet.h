@@ -18,6 +18,13 @@ inline uint16_t saturatingHoldMs(uint32_t now_ms, uint32_t press_started_at_ms) 
   return static_cast<uint16_t>(hold > 65535 ? 65535 : hold);
 }
 
+// aux reported by a heartbeat: the live (saturating) hold while pressed,
+// otherwise the last completed hold.
+inline uint16_t heartbeatAux(bool pressed, uint32_t now_ms, uint32_t press_started_at_ms,
+                             uint16_t last_hold_ms) {
+  return pressed ? saturatingHoldMs(now_ms, press_started_at_ms) : last_hold_ms;
+}
+
 // The FlagLongPressed wire bit and the long-hold link reset share this
 // boundary. Callers combine it with their own pressed/latch checks.
 inline bool longHoldElapsed(uint32_t now_ms, uint32_t press_started_at_ms, uint32_t threshold_ms) {

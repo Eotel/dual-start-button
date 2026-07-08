@@ -29,6 +29,12 @@ void test_hold_ms_above_cap_saturates_to_65535() {
   TEST_ASSERT_EQUAL_UINT16(65535, saturatingHoldMs(10000000, 0));
 }
 
+void test_heartbeat_aux_saturates_live_hold_and_keeps_last_hold() {
+  TEST_ASSERT_EQUAL_UINT16(450, heartbeatAux(true, 1450, 1000, 123));    // pressed: live hold
+  TEST_ASSERT_EQUAL_UINT16(65535, heartbeatAux(true, 70001, 1000, 0));   // pressed: saturated
+  TEST_ASSERT_EQUAL_UINT16(123, heartbeatAux(false, 99999, 1000, 123));  // released: last hold
+}
+
 // --- longHoldElapsed ---------------------------------------------------------
 
 void test_long_hold_boundary_at_threshold() {
@@ -144,6 +150,7 @@ int main() {
   RUN_TEST(test_hold_ms_below_cap_passes_through);
   RUN_TEST(test_hold_ms_at_cap_is_65535);
   RUN_TEST(test_hold_ms_above_cap_saturates_to_65535);
+  RUN_TEST(test_heartbeat_aux_saturates_live_hold_and_keeps_last_hold);
   RUN_TEST(test_long_hold_boundary_at_threshold);
   RUN_TEST(test_flags_each_bit_maps_to_its_runtime_field);
   RUN_TEST(test_flags_linked_requires_both_group_and_slot);

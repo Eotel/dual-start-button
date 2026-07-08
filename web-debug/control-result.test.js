@@ -99,12 +99,12 @@ test('describeControlError points link_conflict at the force option', () => {
     message: 'already linked to another group; use force',
   });
   assert.match(text, /link_conflict/);
-  assert.match(text, /Force link/);
+  assert.match(text, /force link\/unlink/); // matches the index.html checkbox label
 });
 
 test('describeControlError reports other errors with code and message', () => {
   const text = describeControlError({ ok: false, cmd: COMMAND.LINK, error: 'invalid_slot', message: 'LINK requires slot 1 or 2' });
   assert.match(text, /invalid_slot/);
   assert.match(text, /LINK requires slot 1 or 2/);
-  assert.doesNotMatch(text, /Force link/);
+  assert.doesNotMatch(text, /force link/);
 });

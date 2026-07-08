@@ -326,8 +326,7 @@ void heartbeat() {
   const uint32_t now = millis();
   if (now - lastHeartbeatMs >= DSB_HEARTBEAT_MS) {
     lastHeartbeatMs = now;
-    const uint16_t aux = stablePressed ? saturatingHoldMs(now, pressStartedAtMs) : lastHoldMs;
-    publishState(StateType::Heartbeat, aux, true);
+    publishState(StateType::Heartbeat, heartbeatAux(stablePressed, now, pressStartedAtMs, lastHoldMs), true);
   }
 }
 
