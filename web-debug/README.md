@@ -25,6 +25,25 @@ http://localhost:8080
 
 Web Bluetoothは対応ブラウザとsecure contextが必要です。ローカルdebugでは `localhost` を使ってください。
 
+## Tests
+
+プロトコルのencode/decode (`protocol.js`) と開始条件の判定 (`start-condition.js`) は
+Node.js組み込みのテストランナーで検証できます。依存パッケージやビルドは不要です。
+
+```bash
+cd web-debug
+node --test
+```
+
+リポジトリルートから実行する場合は glob で指定してください。
+
+```bash
+node --test 'web-debug/**/*.test.js'
+```
+
+`protocol.test.js` は `../test-vectors/` のgolden vectorを読み込み、firmware / Python /
+C++と同じ契約を確認します。
+
 ## Notes
 
 - `Add / Connect Device` はブラウザのBluetooth chooserを開きます。n台接続したい場合は複数回押してください。

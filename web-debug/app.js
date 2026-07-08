@@ -1,4 +1,5 @@
-'use strict';
+import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
+import { evaluateStartCondition } from './start-condition.js';
 
 const SERVICE_UUID = '7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001';
 const DEVICE_INFO_UUID = '7b1f0001-6d4f-4f4a-9a4f-2d0c7a7a0001';
@@ -6,24 +7,6 @@ const BUTTON_STATE_UUID = '7b1f0002-6d4f-4f4a-9a4f-2d0c7a7a0001';
 const CONTROL_UUID = '7b1f0003-6d4f-4f4a-9a4f-2d0c7a7a0001';
 const CONTROL_RESULT_UUID = '7b1f0004-6d4f-4f4a-9a4f-2d0c7a7a0001';
 
-const COMMAND = {
-  LINK: 1,
-  UNLINK: 2,
-  SET_ARMED: 3,
-  IDENTIFY: 4,
-  FACTORY_RESET_LINK: 5,
-};
-
-const FLAG = {
-  PRESSED: 1 << 0,
-  ARMED: 1 << 1,
-  LINKED: 1 << 2,
-  LONG_PRESSED: 1 << 3,
-  CONNECTED: 1 << 4,
-  ERROR: 1 << 5,
-};
-
-const CONTROL_FLAG0 = 1 << 0;
 const STALE_MS = 1500;
 const CONFIRM_HOLD_MS = 300;
 
@@ -71,43 +54,6 @@ function log(message, data) {
 
 function dataViewToText(dv) {
   return decoder.decode(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength));
-}
-
-function parseState(dv) {
-  if (dv.byteLength !== 20) {
-    throw new Error(`ButtonState must be 20 bytes, got ${dv.byteLength}`);
-  }
-  const flags = dv.getUint8(2);
-  return {
-    version: dv.getUint8(0),
-    type: dv.getUint8(1),
-    flags,
-    pressed: Boolean(flags & FLAG.PRESSED),
-    armed: Boolean(flags & FLAG.ARMED),
-    linked: Boolean(flags & FLAG.LINKED),
-    longPressed: Boolean(flags & FLAG.LONG_PRESSED),
-    deviceConnectedFlag: Boolean(flags & FLAG.CONNECTED),
-    error: Boolean(flags & FLAG.ERROR),
-    linkSlot: dv.getUint8(3),
-    seq: dv.getUint16(4, true),
-    uptimeMs: dv.getUint32(6, true),
-    deviceHash: dv.getUint32(10, true),
-    linkGroupId: dv.getUint32(14, true),
-    aux: dv.getUint16(18, true),
-    lastReceivedAt: Date.now(),
-  };
-}
-
-function makeCommand(command, slot = 0, flags = 0, groupId = 0, value = 0) {
-  const buf = new ArrayBuffer(12);
-  const dv = new DataView(buf);
-  dv.setUint8(0, 1);
-  dv.setUint8(1, command);
-  dv.setUint8(2, slot);
-  dv.setUint8(3, flags);
-  dv.setUint32(4, groupId >>> 0, true);
-  dv.setUint32(8, value >>> 0, true);
-  return buf;
 }
 
 async function writeCommand(entry, command, slot = 0, flags = 0, groupId = 0, value = 0) {
@@ -307,27 +253,14 @@ function slotSummary(slot) {
 }
 
 function computeStartCondition() {
-  const a = slotEntry(1);
-  const b = slotEntry(2);
-  const now = Date.now();
-  if (!pair.slot1) return { ok: false, reason: 'slot 1 is not linked' };
-  if (!pair.slot2) return { ok: false, reason: 'slot 2 is not linked' };
-  if (!a?.connected) return { ok: false, reason: 'slot 1 is not connected' };
-  if (!b?.connected) return { ok: false, reason: 'slot 2 is not connected' };
-  if (!a.state) return { ok: false, reason: 'slot 1 has no state yet' };
-  if (!b.state) return { ok: false, reason: 'slot 2 has no state yet' };
-  if (a.state.linkGroupId !== pair.groupId || a.state.linkSlot !== 1) return { ok: false, reason: 'slot 1 device-link mismatch' };
-  if (b.state.linkGroupId !== pair.groupId || b.state.linkSlot !== 2) return { ok: false, reason: 'slot 2 device-link mismatch' };
-  if (!a.state.armed) return { ok: false, reason: 'slot 1 is disarmed' };
-  if (!b.state.armed) return { ok: false, reason: 'slot 2 is disarmed' };
-  if (now - a.state.lastReceivedAt > STALE_MS) return { ok: false, reason: 'slot 1 state is stale' };
-  if (now - b.state.lastReceivedAt > STALE_MS) return { ok: false, reason: 'slot 2 state is stale' };
-  if (!a.state.pressed) return { ok: false, reason: 'slot 1 is not pressed' };
-  if (!b.state.pressed) return { ok: false, reason: 'slot 2 is not pressed' };
-  const since = Math.max(a.state.pressedSince || now, b.state.pressedSince || now);
-  const held = now - since;
-  if (held < CONFIRM_HOLD_MS) return { ok: false, reason: `both pressed, confirming ${held}/${CONFIRM_HOLD_MS}ms` };
-  return { ok: true, reason: `both buttons pressed and fresh; held ${held}ms` };
+  return evaluateStartCondition({
+    pair,
+    slot1: slotEntry(1),
+    slot2: slotEntry(2),
+    now: Date.now(),
+    staleMs: STALE_MS,
+    confirmHoldMs: CONFIRM_HOLD_MS,
+  });
 }
 
 function renderDeviceCard(entry) {
