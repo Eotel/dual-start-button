@@ -1,6 +1,6 @@
 #pragma once
-#include <Arduino.h>
 #include <stdint.h>
+#include <stddef.h>
 
 namespace dsb {
 
@@ -104,10 +104,10 @@ inline bool decodeControlCommand(const uint8_t* data, size_t len, ControlCommand
   return out.version == PROTOCOL_VERSION;
 }
 
-inline uint32_t fnv1a32(const String& value) {
+inline uint32_t fnv1a32(const char* value) {
   uint32_t hash = 2166136261UL;
-  for (size_t i = 0; i < value.length(); ++i) {
-    hash ^= static_cast<uint8_t>(value[i]);
+  for (; *value != '\0'; ++value) {
+    hash ^= static_cast<uint8_t>(*value);
     hash *= 16777619UL;
   }
   return hash;
