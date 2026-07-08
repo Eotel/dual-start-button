@@ -1,4 +1,5 @@
 import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
+import { createResultCorrelator, describeControlError } from './control-result.js';
 import { evaluateStartCondition } from './start-condition.js';
 
 const SERVICE_UUID = '7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001';
@@ -116,6 +117,7 @@ async function connectBluetoothDevice(bluetoothDevice) {
     info,
     state: null,
     result: null,
+    correlator: createResultCorrelator(),
     chars: {
       deviceInfo: deviceInfoChar,
       state: stateChar,
@@ -134,6 +136,7 @@ async function connectBluetoothDevice(bluetoothDevice) {
       entry.result = { raw: text };
     }
     log(`control result ${entry.info.device_id}`, entry.result);
+    entry.correlator.deliver(entry.result);
     refreshInfo(entry).catch((err) => log(`refresh info failed: ${err.message}`));
     render();
   });
@@ -199,9 +202,26 @@ async function reconnectGrantedDevices() {
   }
 }
 
+// Writes a command and returns the device's ControlResult verdict. A completed
+// GATT write is delivery, not acceptance: the device may reject (link_conflict
+// etc.) and the result arrives asynchronously via Notify. The expectation is
+// registered before writing so a fast notify cannot slip past; the no-op catch
+// keeps a timeout from becoming an unhandled rejection if the write throws.
+async function writeConfirmed(entry, command, slot = 0, flags = 0, groupId = 0, value = 0) {
+  const resultPromise = entry.correlator.expect(command);
+  resultPromise.catch(() => {});
+  await writeCommand(entry, command, slot, flags, groupId, value);
+  return resultPromise;
+}
+
+// The local pair is only updated once the device confirms with ok:true.
 async function linkAsSlot(entry, slot) {
-  const flags = getForceFlag();
-  await writeCommand(entry, COMMAND.LINK, slot, flags, pair.groupId, 0);
+  const result = await writeConfirmed(entry, COMMAND.LINK, slot, getForceFlag(), pair.groupId, 0);
+  if (!result.ok) {
+    log(`LINK slot ${slot} rejected by ${entry.info.device_id}: ${describeControlError(result)}`);
+    render();
+    return;
+  }
   const record = {
     deviceId: entry.info.device_id,
     deviceHash: entry.info.device_hash,
@@ -215,8 +235,12 @@ async function linkAsSlot(entry, slot) {
 }
 
 async function unlinkDevice(entry) {
-  const flags = getForceFlag();
-  await writeCommand(entry, COMMAND.UNLINK, 0, flags, pair.groupId, 0);
+  const result = await writeConfirmed(entry, COMMAND.UNLINK, 0, getForceFlag(), pair.groupId, 0);
+  if (!result.ok) {
+    log(`UNLINK rejected by ${entry.info.device_id}: ${describeControlError(result)}`);
+    render();
+    return;
+  }
   if (pair.slot1?.deviceId === entry.info.device_id) pair.slot1 = null;
   if (pair.slot2?.deviceId === entry.info.device_id) pair.slot2 = null;
   savePair();
