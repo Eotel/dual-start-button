@@ -1,6 +1,6 @@
 # Dual Start Button
 
-M5Stack family devicesをBLE GATT Peripheralとして動作させ、スマホ側で任意のn台から2台を選んで同時押下開始条件を作るための仕様・firmware・debug web appです。
+M5Stack family devicesをBLE GATT Peripheralとして動作させ、スマホ側で任意のn台から2台を選んでトグル式（各ボタンを押すたびにactiveが反転し、両方activeで開始）の開始条件を作るための仕様・firmware・debug web appです。
 
 ## Contents
 
@@ -72,5 +72,5 @@ and every pull request.
 2. Open the debug app or the real smartphone app.
 3. Connect any number of devices.
 4. Link two chosen devices to slot 1 and slot 2.
-5. Start condition becomes true when both linked slots are connected, armed, fresh, and pressed simultaneously for the confirmation window.
+5. Each press of a linked button toggles its slot's host-side active state. Start condition becomes true when both linked slots are connected, armed, fresh, and active. Simultaneous pressing is not required.
 6. To replace a device or phone, scan again and force link the desired devices.

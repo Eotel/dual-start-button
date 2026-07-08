@@ -1,4 +1,5 @@
 import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
+import { INITIAL_ACTIVE, reduceActive } from './active-state.js';
 import { evaluateStartCondition } from './start-condition.js';
 
 const SERVICE_UUID = '7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001';
@@ -8,9 +9,11 @@ const CONTROL_UUID = '7b1f0003-6d4f-4f4a-9a4f-2d0c7a7a0001';
 const CONTROL_RESULT_UUID = '7b1f0004-6d4f-4f4a-9a4f-2d0c7a7a0001';
 
 const STALE_MS = 1500;
-const CONFIRM_HOLD_MS = 300;
 
 const devices = new Map(); // key: browser bluetooth device id
+// Host-derived Active per slot (SPEC section 12): toggled by press down-edges
+// of the locally linked device, reset on disconnect/unlink/relink/new group.
+const slotActive = { 1: INITIAL_ACTIVE, 2: INITIAL_ACTIVE };
 const decoder = new TextDecoder();
 
 const $ = (selector) => document.querySelector(selector);
@@ -83,6 +86,27 @@ function slotEntry(slot) {
   return findEntryByDeviceId(slotRecord.deviceId);
 }
 
+function linkedSlotsOf(deviceId) {
+  if (!deviceId) return [];
+  const slots = [];
+  if (pair.slot1?.deviceId === deviceId) slots.push(1);
+  if (pair.slot2?.deviceId === deviceId) slots.push(2);
+  return slots;
+}
+
+function resetActive(slot) {
+  slotActive[slot] = INITIAL_ACTIVE;
+}
+
+// Single owner of slot-binding changes: whenever a slot's device record
+// changes, its active state resets and the pair is persisted.
+function setSlotRecord(slot, record) {
+  if (slot === 1) pair.slot1 = record;
+  if (slot === 2) pair.slot2 = record;
+  resetActive(slot);
+  savePair();
+}
+
 async function connectBluetoothDevice(bluetoothDevice) {
   const existing = devices.get(bluetoothDevice.id);
   if (existing?.connected) return existing;
@@ -94,8 +118,8 @@ async function connectBluetoothDevice(bluetoothDevice) {
     entry.connected = false;
     if (entry.state) {
       entry.state.pressed = false;
-      entry.state.pressedSince = undefined;
     }
+    for (const slot of linkedSlotsOf(entry.info?.device_id)) resetActive(slot);
     log(`disconnected ${entry.info?.device_id || bluetoothDevice.name || bluetoothDevice.id}`);
     render();
   });
@@ -156,13 +180,13 @@ function applyState(entry, dv) {
   if (prev && prev.seq === next.seq && prev.uptimeMs === next.uptimeMs) {
     return;
   }
-  // Reception bookkeeping (freshness, confirm-hold) belongs to the host layer,
-  // not the wire decoder (SPEC section 12).
+  // Reception bookkeeping (freshness, Active toggling) belongs to the host
+  // layer, not the wire decoder (SPEC section 12).
   next.lastReceivedAt = Date.now();
-  if (next.pressed) {
-    next.pressedSince = prev?.pressed ? prev.pressedSince : Date.now();
-  }
   entry.state = next;
+  for (const slot of linkedSlotsOf(entry.info?.device_id)) {
+    slotActive[slot] = reduceActive(slotActive[slot], next.pressed);
+  }
   render();
 }
 
@@ -207,9 +231,7 @@ async function linkAsSlot(entry, slot) {
     deviceHash: entry.info.device_hash,
     displayName: entry.info.name || entry.bluetoothDevice.name || entry.info.device_id,
   };
-  if (slot === 1) pair.slot1 = record;
-  if (slot === 2) pair.slot2 = record;
-  savePair();
+  setSlotRecord(slot, record);
   log(`linked local slot ${slot}`, record);
   render();
 }
@@ -217,9 +239,7 @@ async function linkAsSlot(entry, slot) {
 async function unlinkDevice(entry) {
   const flags = getForceFlag();
   await writeCommand(entry, COMMAND.UNLINK, 0, flags, pair.groupId, 0);
-  if (pair.slot1?.deviceId === entry.info.device_id) pair.slot1 = null;
-  if (pair.slot2?.deviceId === entry.info.device_id) pair.slot2 = null;
-  savePair();
+  for (const slot of linkedSlotsOf(entry.info.device_id)) setSlotRecord(slot, null);
   log(`unlinked local ${entry.info.device_id}`);
   render();
 }
@@ -250,7 +270,7 @@ function slotSummary(slot) {
   return `<div class="slotState">
     <strong>${escapeHtml(record.displayName || record.deviceId)}</strong><br>
     <small>${escapeHtml(record.deviceId)}</small><br>
-    pressed=${state?.pressed ? 'YES' : 'no'} / armed=${state?.armed ? 'YES' : 'no'} / ${freshText(state)}<br>
+    active=${slotActive[slot].active ? 'YES' : 'no'} / pressed=${state?.pressed ? 'YES' : 'no'} / armed=${state?.armed ? 'YES' : 'no'} / ${freshText(state)}<br>
     device-link=${okLink ? 'ok' : 'mismatch'}
   </div>`;
 }
@@ -260,9 +280,10 @@ function computeStartCondition() {
     pair,
     slot1: slotEntry(1),
     slot2: slotEntry(2),
+    slot1Active: slotActive[1].active,
+    slot2Active: slotActive[2].active,
     now: Date.now(),
     staleMs: STALE_MS,
-    confirmHoldMs: CONFIRM_HOLD_MS,
   });
 }
 
@@ -342,7 +363,15 @@ function init() {
   $('#newGroupBtn').addEventListener('click', () => {
     if (!confirm('Create a new group ID and clear local slot assignments? Device-side links are not cleared.')) return;
     pair = { groupId: newGroupId(), slot1: null, slot2: null };
+    resetActive(1);
+    resetActive(2);
     savePair();
+    render();
+  });
+  $('#resetActiveBtn').addEventListener('click', () => {
+    resetActive(1);
+    resetActive(2);
+    log('active reset (both slots)');
     render();
   });
 
