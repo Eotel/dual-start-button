@@ -180,20 +180,6 @@ void updateDisplay() {
   device.showText(l1, l2, l3);
 }
 
-// Long-hold-reset twin of makeClear() in link_control.h: the clear semantics
-// here (zeroed link, generation bump, persist, cyan 1200ms blink, Link publish)
-// must stay identical to the control-initiated UNLINK/FACTORY_RESET_LINK path.
-void clearLink(const char* reason) {
-  linkGroupId = 0;
-  linkSlot = 0;
-  ++linkGeneration;
-  saveLink();
-  refreshDeviceInfoCharacteristic();
-  device.blinkStatus(0, 64, 64, 1200);
-  publishState(StateType::Link, 0, true);
-  Serial.printf("link cleared: %s\n", reason ? reason : "");
-}
-
 void applyControlOutcome(const ControlOutcome& outcome) {
   // Apply the resulting link state, then persist link fields if required.
   linkGroupId = outcome.state.group_id;
@@ -335,8 +321,9 @@ void updateButton() {
 
   if (stablePressed && !longHoldResetTriggered && now - pressStartedAtMs >= DSB_LONG_HOLD_RESET_MS) {
     longHoldResetTriggered = true;
-    clearLink("long hold reset");
-    sendControlResult(true, static_cast<uint8_t>(ControlCommand::FactoryResetLink), nullptr, "long hold reset link done");
+    const LinkState current{linkGroupId, linkSlot, linkGeneration, armed};
+    applyControlOutcome(makeClear(current, static_cast<uint8_t>(ControlCommand::FactoryResetLink),
+                                  "long hold reset link done"));
   }
 }
 

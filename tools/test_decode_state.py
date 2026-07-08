@@ -80,7 +80,7 @@ def test_button_state_decode_matches(case: dict) -> None:
 
 @pytest.mark.parametrize("case", BUTTON_STATE["invalid"], ids=_ids(BUTTON_STATE["invalid"]))
 def test_button_state_wrong_length_rejected(case: dict) -> None:
-    with pytest.raises(SystemExit):
+    with pytest.raises(ValueError):
         decode(bytes.fromhex(case["hex"]))
 
 

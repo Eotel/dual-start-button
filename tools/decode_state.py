@@ -24,10 +24,10 @@ TYPES = {
 def decode(data: bytes) -> dict[str, object]:
     """Decode a 20-byte ButtonState packet into a field dict.
 
-    Raises SystemExit on wrong-length input, matching CLI behavior.
+    Raises ValueError on wrong-length input.
     """
     if len(data) != 20:
-        raise SystemExit(f"expected 20 bytes, got {len(data)}")
+        raise ValueError(f"expected 20 bytes, got {len(data)}")
     version, typ, flags, slot, seq, uptime, device_hash, group, aux = struct.unpack("<BBBBHIIIH", data)
     active_flags = [name for bit, name in FLAGS if flags & bit]
     return {
@@ -48,7 +48,10 @@ def main() -> None:
     parser.add_argument("hex", help="20-byte packet, e.g. 01 02 16 01 ...")
     args = parser.parse_args()
     data = bytes.fromhex(args.hex)
-    print(decode(data))
+    try:
+        print(decode(data))
+    except ValueError as err:
+        raise SystemExit(str(err))
 
 
 if __name__ == "__main__":

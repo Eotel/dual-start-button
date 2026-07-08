@@ -60,4 +60,4 @@ jobs:
             ~/.cache/pip
           key: pio-esp32-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
       - run: pip install platformio
-      - run: pio run -e m5atom_lite -d firmware/pio
+      - run: pio run -e m5atom_lite -e m5stick_c -e m5stack_atoms3 -e generic_esp32_gpio -d firmware/pio
