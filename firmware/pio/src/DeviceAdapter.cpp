@@ -77,15 +77,20 @@ void DeviceAdapter::blinkStatus(uint8_t r, uint8_t g, uint8_t b, uint32_t durati
 
 void DeviceAdapter::showText(const String& line1, const String& line2, const String& line3) {
   if (M5.Display.width() <= 0 || M5.Display.height() <= 0) return;
-  M5.Display.fillScreen(TFT_BLACK);
-  M5.Display.setCursor(0, 0);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.println(line1);
-  if (line2.length()) M5.Display.println(line2);
-  if (line3.length()) M5.Display.println(line3);
+  const int16_t lineHeight = M5.Display.fontHeight() + 2;
+  drawTextLine(0, line1, shownLine1_);
+  drawTextLine(lineHeight, line2, shownLine2_);
+  drawTextLine(lineHeight * 2, line3, shownLine3_);
 }
 
 void DeviceAdapter::applyRgb(uint8_t r, uint8_t g, uint8_t b) {
+  if (appliedRgbValid_ && appliedR_ == r && appliedG_ == g && appliedB_ == b) return;
+  appliedRgbValid_ = true;
+  appliedR_ = r;
+  appliedG_ = g;
+  appliedB_ = b;
+
   if (M5.Led.isEnabled()) {
     M5.Led.setColor(0, r, g, b);
   }
@@ -95,4 +100,15 @@ void DeviceAdapter::applyRgb(uint8_t r, uint8_t g, uint8_t b) {
     // because showText() owns display content for debug-capable devices.
     M5.Display.fillRect(0, M5.Display.height() - 8, M5.Display.width(), 8, M5.Display.color565(r, g, b));
   }
+}
+
+void DeviceAdapter::drawTextLine(int16_t y, const String& next, String& previous) {
+  if (next == previous) return;
+  previous = next;
+
+  const int16_t lineHeight = M5.Display.fontHeight() + 2;
+  M5.Display.fillRect(0, y, M5.Display.width(), lineHeight, TFT_BLACK);
+  if (!next.length()) return;
+  M5.Display.setCursor(0, y);
+  M5.Display.print(next);
 }

@@ -41,7 +41,10 @@ bool longHoldResetTriggered = false;
 
 uint16_t seq = 0;
 uint32_t lastHeartbeatMs = 0;
-uint32_t lastUiUpdateMs = 0;
+bool lastDisplayConnected = false;
+bool lastDisplayPressed = false;
+uint8_t lastDisplaySlot = 0xff;
+bool displaySnapshotValid = false;
 
 String hexDeviceIdFromEfuse() {
   const uint64_t mac = ESP.getEfuseMac();
@@ -51,9 +54,10 @@ String hexDeviceIdFromEfuse() {
   return String(buf);
 }
 
-String last4(const String& s) {
-  if (s.length() <= 4) return s;
-  return s.substring(s.length() - 4);
+String shortNameSuffix(uint32_t hash) {
+  char buf[7];
+  snprintf(buf, sizeof(buf), "%06lX", static_cast<unsigned long>(hash & 0x00ffffffUL));
+  return String(buf);
 }
 
 void saveLink() {
@@ -170,9 +174,14 @@ void updateStatusIndication() {
 }
 
 void updateDisplay() {
-  const uint32_t now = millis();
-  if (now - lastUiUpdateMs < 500) return;
-  lastUiUpdateMs = now;
+  if (displaySnapshotValid && lastDisplayConnected == connected && lastDisplayPressed == stablePressed &&
+      lastDisplaySlot == linkSlot) {
+    return;
+  }
+  displaySnapshotValid = true;
+  lastDisplayConnected = connected;
+  lastDisplayPressed = stablePressed;
+  lastDisplaySlot = linkSlot;
 
   String l1 = deviceName + " " + String(DSB_FW_VERSION);
   String l2 = connected ? "connected" : "advertising";
@@ -331,7 +340,7 @@ void setup() {
   prefs.begin("dsb", false);
   deviceId = hexDeviceIdFromEfuse();
   deviceHash = fnv1a32(deviceId.c_str());
-  deviceName = "DSB-" + last4(deviceId);
+  deviceName = "DSB-" + shortNameSuffix(deviceHash);
   loadLink();
 
   Serial.printf("device_id=%s hash=%lu model=%s fw=%s\n", deviceId.c_str(), static_cast<unsigned long>(deviceHash),

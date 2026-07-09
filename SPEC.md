@@ -160,11 +160,14 @@ UUID: 7b1f0000-6d4f-4f4a-9a4f-2d0c7a7a0001
 Device advertises:
 
 ```text
-local_name: DSB-<last 4 hex of device_id>
+local_name: DSB-<6 hex chars derived from device_hash>
 service_uuid: DualStartButtonService
 ```
 
-Initial version keeps advertising data minimal for compatibility. DeviceInfo read is the source of truth.
+`local_name` should be a short stable label derived from `device_hash`, e.g.
+`DSB-345678`. DeviceInfo read is still the source of truth; hosts must not use
+the local name as identity because multiple devices may have colliding or stale
+advertised names.
 
 ## 7. DeviceInfo characteristic
 
@@ -177,7 +180,7 @@ Example:
   "v": 1,
   "device_id": "A1B2C3D4E5F6",
   "device_hash": 305419896,
-  "name": "DSB-E5F6",
+  "name": "DSB-345678",
   "fw": "0.1.0",
   "model": "m5stack-family",
   "protocol": "dual-start-button-gatt-v1",
