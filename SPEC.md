@@ -13,7 +13,7 @@ Host: smartphone app / debug Web Bluetooth app
 
 ## 2. Non-goals
 
-- BLE HIDキーボード/ゲームパッドとしての実装は対象外。
+- BLE HIDキーボード/ゲームパッドは正準Dual Start Button protocolではない。iPhone向けfallbackとしての制約付き運用のみ `14. HID keyboard fallback` で扱う。
 - BLE Advertisingのみで押下を送る方式は対象外。
 - BLE bonding必須のセキュアペアリングは初期版では対象外。
 - TailBATの正確なバッテリー残量取得は対象外。TailBAT単体ではAtom Lite側から正確な残量を読める前提を置かない。
@@ -31,6 +31,7 @@ Host: smartphone app / debug Web Bluetooth app
 | Armed | Hostが開始判定に使ってよい状態 |
 | Pressed | 物理ボタンが現在押されている状態 |
 | Active | Host側で導出するトグル状態。pressedのdown-edgeを観測するたびに反転する。wire上には存在しない |
+| HID fallback | iPhone Web Bluetooth非対応を回避するため、デバイスをBluetooth keyboardとしてpairし、browser keyboard eventをhost側でslotに割り当てる制約付きモード |
 
 ## 4. Design decisions
 
@@ -519,7 +520,54 @@ Host behavior:
 - If automatic reconnect fails, show manual scan UI.
 - Never start if either slot is stale or disconnected.
 
-## 14. Security and safety
+## 14. HID keyboard fallback
+
+HID fallbackは、iPhone Safari / Home Screen web appがWeb Bluetoothを扱えない場合の制約付きbrowser fallbackである。正準動作は引き続きBLE GATT protocolであり、Android Chrome、desktop Chrome、native iOS/CoreBluetoothはGATT側を使う。
+
+HID fallback firmware:
+
+- `m5stick_c_hid` buildとして通常GATT firmwareから分離する。
+- Deviceは固定slot 1/2 roleを持たない。
+- Deviceは `device_id` のFNV-1a hashから安定したkeyboard usageを選ぶ。
+- 初期policyはF13-F24の12候補である。Host側は実際にbrowserで見えた `KeyboardEvent.code` / `key` をsource of truthにする。
+- 同一key identityの2台割り当てはhostが拒否する。hash衝突またはOS/browser normalizationで区別不能な場合、HID fallbackとしてはその2台構成をreadyにしてはならない。
+
+HID fallback host state:
+
+```ts
+type HidBinding = {
+  id: string;    // e.g. "code:F13"
+  label: string; // e.g. "F13"
+};
+
+type HidSlot = {
+  assignment?: HidBinding;
+  pressed: boolean;
+  active: SlotActive;
+};
+```
+
+Rules:
+
+- User captures the next observed keyboard identity into HID slot 1 or slot 2.
+- Assignments are local browser bindings. They are not firmware-side links, BLE GATT links, or ownership records.
+- The capture press seeds the slot baseline and does not toggle active. The next release+press can toggle.
+- An assigned key down-edge toggles that HID slot's host-derived active state.
+- Repeated keydown for a held key must not repeatedly toggle active.
+- Keyup clears transient `pressed` without changing `active`.
+- A host timeout clears stuck `pressed` if keyup is missed.
+- HID start condition requires both HID slots assigned, the page in a focused/visible usable state, and both HID slots active.
+
+Limitations:
+
+- No GATT DeviceInfo identity in the browser event.
+- No heartbeat or freshness guarantee.
+- Weak disconnect detection; host can only infer from focus/keyup/timeout.
+- No Control characteristic, link/unlink, identify, arm/disarm, or device-side recovery commands.
+- No BLE OTA path in HID mode.
+- Pairing and key delivery behavior must be validated on the target iPhone/iOS/browser surface before field use.
+
+## 15. Security and safety
 
 Initial design intentionally avoids hard BLE bonding to keep replacement easy.
 
@@ -546,7 +594,7 @@ ControlCommandV2:
 
 Do not use this initial v1 in a high-adversary environment without additional protection.
 
-## 15. Firmware project
+## 16. Firmware project
 
 Location:
 
@@ -568,6 +616,7 @@ Expected commands:
 cd firmware/pio
 pio run -e m5atom_lite
 pio run -e m5stick_c
+pio run -e m5stick_c_hid
 pio run -e m5stack_atoms3
 pio run -e generic_esp32_gpio
 ```
@@ -579,7 +628,7 @@ pio run -e m5atom_lite -t upload
 pio device monitor -b 115200
 ```
 
-## 16. Debug web app
+## 17. Debug web app
 
 Location:
 
@@ -597,6 +646,7 @@ Purpose:
 - Display live active/pressed/armed/stale state.
 - Show whether the two selected slots satisfy the start condition.
 - Reset the host-side active state manually.
+- Capture and test local HID fallback slot bindings separately from GATT links.
 
 Run locally:
 
@@ -613,9 +663,9 @@ http://localhost:8080
 
 Web Bluetooth requires a compatible browser and a secure context. `localhost` is acceptable for local debug in Chromium-based browsers.
 
-## 17. Test plan
+## 18. Test plan
 
-### 17.1 Firmware unit-level/manual checks
+### 18.1 Firmware unit-level/manual checks
 
 | Case | Expected |
 |---|---|
@@ -631,8 +681,10 @@ Web Bluetooth requires a compatible browser and a secure context. `localhost` is
 | Already linked + no force | conflict result |
 | Already linked + force | link overwritten |
 | Disconnect host | advertising restarts |
+| HID fallback boot | Device advertises as Bluetooth keyboard `DSB-HID-xxxx` |
+| HID fallback press/release | Keyboard report sends stable F13-F24-derived usage down/up |
 
-### 17.2 Debug web app checks
+### 18.2 Debug web app checks
 
 | Case | Expected |
 |---|---|
@@ -651,16 +703,22 @@ Web Bluetooth requires a compatible browser and a secure context. `localhost` is
 | Disconnect one active slot | Its active resets, start condition false, stale/connected state shown |
 | Reconnect and press once | Slot becomes active again |
 | Force relink | Device moves to selected slot, that slot's active resets |
+| HID capture slot1/slot2 | Next observed keyboard identity is locally assigned |
+| HID duplicate key | Same key identity cannot be assigned to both HID slots |
+| HID down-edge | Assigned slot active toggles once |
+| HID repeat/keyup/timeout | Held repeat does not re-toggle; keyup or timeout clears pressed |
+| HID focus loss | HID start condition becomes not ready |
 
-### 17.3 Field operation checks
+### 18.3 Field operation checks
 
 - 2台を1m、5m、10mで押下確認。
 - スマホ画面ロック時・復帰時の挙動確認。実アプリがforeground前提なら明記する。
 - 長時間待機後のdisconnect/reconnect確認。
 - TailBAT満充電からの連続稼働時間確認。
 - 交換手順を非開発者が実施できるか確認。
+- iPhone SafariまたはHome Screen web appで2台のHID fallback deviceをpairし、browser-visible key identityが区別できるか確認する。区別不能ならHID fallbackは停止判断の根拠として記録する。
 
-## 18. References
+## 19. References
 
 - M5 Atom Lite documentation: https://docs.m5stack.com/en/core/ATOM%20Lite
 - M5Unified overview/button API: https://docs.m5stack.com/en/arduino/m5unified/helloworld and https://docs.m5stack.com/ja/arduino/m5unified/button_class

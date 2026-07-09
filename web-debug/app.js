@@ -1,6 +1,21 @@
 import { INITIAL_ACTIVE, reduceActive, resetActive } from './active-state.js';
 import { confirmsLink, createResultCorrelator, describeControlError } from './control-result.js';
 import { deviceDisplayName } from './device-label.js';
+import {
+  applyHidKeyDown,
+  applyHidKeyUp,
+  clearHidSlot,
+  createHidFallbackState,
+  evaluateHidStartCondition,
+  expireHidReleases,
+  HID_STORAGE_KEY,
+  hidIdentityFromEvent,
+  parseHidAssignments,
+  resetHidActive,
+  serializeHidAssignments,
+  setHidFocus,
+  startHidCapture,
+} from './hid-fallback.js';
 import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
 import { evaluateStartCondition } from './start-condition.js';
 
@@ -35,9 +50,18 @@ function loadPair() {
 }
 
 let pair = loadPair();
+let hidState = createHidFallbackState(loadHidAssignments());
 
 function savePair() {
   localStorage.setItem('dsb.pair', JSON.stringify(pair));
+}
+
+function loadHidAssignments() {
+  return parseHidAssignments(localStorage.getItem(HID_STORAGE_KEY));
+}
+
+function saveHidAssignments() {
+  localStorage.setItem(HID_STORAGE_KEY, serializeHidAssignments(hidState));
 }
 
 function newGroupId() {
@@ -108,6 +132,30 @@ function slotLinkStatusText() {
   const slot1 = pair.slot1?.deviceId ? 'slot 1 linked' : 'slot 1 empty';
   const slot2 = pair.slot2?.deviceId ? 'slot 2 linked' : 'slot 2 empty';
   return `${slot1}, ${slot2}`;
+}
+
+function isEditableTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  if (target.closest('input, textarea, select, [contenteditable="true"]')) return true;
+  return false;
+}
+
+function hidEventWillBeHandled(event) {
+  const identity = hidIdentityFromEvent(event);
+  if (!identity) return false;
+  if (hidState.captureSlot) return true;
+  return (
+    hidState.slots[1].assignment?.id === identity.id ||
+    hidState.slots[2].assignment?.id === identity.id
+  );
+}
+
+function applyHidState(next, { persist = false, logError = false } = {}) {
+  const prevError = hidState.error;
+  hidState = next;
+  if (persist) saveHidAssignments();
+  if (logError && hidState.error && hidState.error !== prevError) log(`HID: ${hidState.error}`);
+  renderHid();
 }
 
 // Reset a slot's active state. When the slot's device state is already known
@@ -342,6 +390,46 @@ function slotContent(slot) {
     </div>`;
 }
 
+function hidSlotContent(slot) {
+  const state = hidState.slots[slot];
+  if (!state.assignment) return '<div class="slotEmpty">未割当</div>';
+  return `<div class="slotName">${escapeHtml(state.assignment.label)}</div>
+    <div class="slotDeviceId">${escapeHtml(state.assignment.id)}</div>
+    <div class="slotMetrics">
+      <span>active=${state.active.active ? 'YES' : 'no'}</span>
+      <span>pressed=${state.pressed ? 'YES' : 'no'}</span>
+      <span>source=keyboard</span>
+      <span>binding=local</span>
+    </div>`;
+}
+
+function renderHidSlot(slot) {
+  const el = $(`#hidSlot${slot}State`);
+  const slotState = hidState.slots[slot];
+  el.classList.toggle('empty', !slotState.assignment);
+  el.classList.toggle('hidCaptureArmed', hidState.captureSlot === slot);
+  el.innerHTML = hidSlotContent(slot);
+}
+
+function renderHid() {
+  const condition = evaluateHidStartCondition(hidState);
+  const conditionEl = $('#hidStartCondition');
+  conditionEl.textContent = condition.ok ? 'READY / START' : 'NOT READY';
+  conditionEl.classList.toggle('ok', condition.ok);
+  conditionEl.classList.toggle('ng', !condition.ok);
+  $('#hidStartReason').textContent = condition.reason;
+  $('#hidFocusStatus').textContent = hidState.focusOk ? 'focused' : 'not focused';
+  $('#hidCaptureStatus').textContent = hidState.captureSlot
+    ? `waiting for slot ${hidState.captureSlot}`
+    : 'idle';
+  $('#hidLastObserved').textContent = hidState.lastObserved
+    ? `${hidState.lastObserved.label} ${hidState.lastObserved.kind}${hidState.lastObserved.repeat ? ' repeat' : ''}`
+    : '-';
+  $('#hidError').textContent = hidState.error || '';
+  renderHidSlot(1);
+  renderHidSlot(2);
+}
+
 function computeStartCondition() {
   return evaluateStartCondition({
     pair,
@@ -472,6 +560,7 @@ function render() {
   conditionEl.classList.toggle('ng', !condition.ok);
   $('#startReason').textContent = condition.reason;
 
+  renderHid();
   renderDevices();
 }
 
@@ -487,6 +576,35 @@ function escapeHtml(value) {
 function showError(err) {
   console.error(err);
   log(`ERROR: ${err.message || err}`);
+}
+
+function updateHidFocusFromPage() {
+  const focused = document.visibilityState === 'visible' && document.hasFocus();
+  applyHidState(setHidFocus(hidState, focused));
+}
+
+function handleHidKeyDown(event) {
+  if (isEditableTarget(event.target)) return;
+  const handled = hidEventWillBeHandled(event);
+  const before = serializeHidAssignments(hidState);
+  const next = applyHidKeyDown(hidState, event);
+  applyHidState(next, {
+    persist: serializeHidAssignments(next) !== before,
+    logError: true,
+  });
+  if (handled) event.preventDefault();
+}
+
+function handleHidKeyUp(event) {
+  if (isEditableTarget(event.target)) return;
+  const handled = hidEventWillBeHandled(event);
+  applyHidState(applyHidKeyUp(hidState, event));
+  if (handled) event.preventDefault();
+}
+
+function tickHidReleaseTimeouts() {
+  const next = expireHidReleases(hidState);
+  if (next !== hidState) applyHidState(next);
 }
 
 function init() {
@@ -520,10 +638,35 @@ function init() {
     log('active reset (both slots)');
     render();
   });
+  $('#hidCaptureSlot1Btn').addEventListener('click', () =>
+    applyHidState(startHidCapture(hidState, 1)),
+  );
+  $('#hidCaptureSlot2Btn').addEventListener('click', () =>
+    applyHidState(startHidCapture(hidState, 2)),
+  );
+  $('#hidClearSlot1Btn').addEventListener('click', () =>
+    applyHidState(clearHidSlot(hidState, 1), { persist: true }),
+  );
+  $('#hidClearSlot2Btn').addEventListener('click', () =>
+    applyHidState(clearHidSlot(hidState, 2), { persist: true }),
+  );
+  $('#hidResetActiveBtn').addEventListener('click', () => {
+    applyHidState(resetHidActive(hidState));
+    log('HID active reset');
+  });
+
+  document.addEventListener('keydown', handleHidKeyDown);
+  document.addEventListener('keyup', handleHidKeyUp);
+  window.addEventListener('focus', updateHidFocusFromPage);
+  window.addEventListener('blur', updateHidFocusFromPage);
+  document.addEventListener('visibilitychange', updateHidFocusFromPage);
+  updateHidFocusFromPage();
 
   savePair();
+  saveHidAssignments();
   render();
   setInterval(render, 1000);
+  setInterval(tickHidReleaseTimeouts, 100);
 }
 
 init();

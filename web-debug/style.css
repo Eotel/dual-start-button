@@ -148,6 +148,10 @@ button:disabled {
   overflow: auto;
 }
 
+.slotState.hid {
+  height: 132px;
+}
+
 .slotEmpty {
   font-size: 18px;
 }
@@ -199,6 +203,44 @@ button:disabled {
   background: #ffe0e0;
 }
 
+.startCondition.hid {
+  align-items: center;
+  display: flex;
+  font-size: 18px;
+  justify-content: center;
+  min-height: 58px;
+  padding: 12px;
+}
+
+.hidHeader {
+  align-items: stretch;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+}
+
+.hidFacts {
+  margin: 0;
+}
+
+.hidLimit {
+  margin: 12px 0;
+}
+
+.hidError {
+  color: #8a1f1f;
+  min-height: 22px;
+}
+
+.hidSlotGrid h3 {
+  margin: 0 0 8px;
+}
+
+.hidCaptureArmed {
+  outline: 2px solid #315fbd;
+  outline-offset: 2px;
+}
+
 .muted {
   color: #64748b;
 }
@@ -222,6 +264,9 @@ pre {
     padding: 12px;
   }
   .grid.two {
+    grid-template-columns: 1fr;
+  }
+  .hidHeader {
     grid-template-columns: 1fr;
   }
   .actions {
