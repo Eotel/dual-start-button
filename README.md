@@ -27,6 +27,7 @@ Other envs:
 
 ```bash
 pio run -e m5stick_c
+pio run -e m5stick_c_hid
 pio run -e m5stack_atoms3
 pio run -e generic_esp32_gpio
 ```
@@ -54,6 +55,14 @@ Open `http://localhost:18080` in Chrome or Edge and select the connected serial
 port. Hosted copies must be served over HTTPS because browser serial access
 requires a secure context.
 
+To build a browser flasher bundle for the iPhone HID keyboard fallback image:
+
+```bash
+devenv shell -- pio run -e m5stick_c_hid -d firmware/pio
+devenv shell -- python3 tools/prepare_web_flasher.py --env m5stick_c_hid --tag local
+python3 -m http.server 18081 -d dist/web-flasher/m5stick_c_hid
+```
+
 ### Debug app
 
 ```bash
@@ -62,6 +71,12 @@ python3 -m http.server 8080
 ```
 
 Open `http://localhost:8080` in a Web Bluetooth compatible browser.
+
+The debug app also includes a separate HID Keyboard Fallback section for iPhone
+browser testing. HID fallback uses OS keyboard events and local browser slot
+bindings; it is not the BLE GATT protocol and does not provide DeviceInfo,
+heartbeat, link/unlink, identify, arm/disarm, or OTA. See
+`docs/hid-fallback.md`.
 
 ## Testing
 
@@ -108,7 +123,7 @@ CI の `lint` ジョブがローカルと同一の hook 一式を全ファイル
 
 ## Releases
 
-タグ `v*` を push すると GitHub Actions が4環境のファームウェアをビルドし、GitHub Release に `dual-start-button-<env>-<tag>.bin`(アプリイメージ)と `SHA256SUMS` を添付します。
+タグ `v*` を push すると GitHub Actions がGATT 4環境と `m5stick_c_hid` のファームウェアをビルドし、GitHub Release に `dual-start-button-<env>-<tag>.bin`(アプリイメージ)と `SHA256SUMS` を添付します。
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
@@ -116,7 +131,7 @@ git tag v0.2.0 && git push origin v0.2.0
 
 - タグを打つ前に `firmware/pio/platformio.ini` の `DSB_FW_VERSION` をタグと一致させてください(DeviceInfo が報告するバージョンの源)。
 - 添付の bin はアプリイメージ(オフセット 0x10000)で、書き込み済みデバイスの更新用です。工場出荷状態のデバイスへの初回書き込み(bootloader / partition table を含む)は `pio run -e <env> -t upload` を使ってください。
-- Release には `dual-start-button-web-flasher-m5stick_c-<tag>.zip` も添付します。これは M5StickC Plus 向けの browser USB flasher 一式です。zip を展開して HTTPS または localhost で配信すると、初回書き込みや復旧に使えます。
+- Release には `dual-start-button-web-flasher-m5stick_c-<tag>.zip` と `dual-start-button-web-flasher-m5stick_c_hid-<tag>.zip` も添付します。前者は通常GATT、後者はiPhone HID fallback向けです。zip を展開して HTTPS または localhost で配信すると、初回書き込みや復旧に使えます。
 
 ## Update path
 

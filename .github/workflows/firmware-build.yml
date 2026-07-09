@@ -1,6 +1,6 @@
 name: firmware-build
 
-# The 4-env ESP32 build takes ~3 minutes; run it only when firmware sources
+# The ESP32 builds take a few minutes; run them only when firmware sources
 # (or this workflow) change. Host-runnable checks stay in ci.yml.
 on:
   push:
@@ -32,5 +32,6 @@ jobs:
             ~/.cache/pip
           key: pio-esp32-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
       - run: pip install platformio
-      - run: pio run -e m5atom_lite -e m5stick_c -e m5stack_atoms3 -e generic_esp32_gpio -d firmware/pio
+      - run: pio run -e m5atom_lite -e m5stick_c -e m5stick_c_hid -e m5stack_atoms3 -e generic_esp32_gpio -d firmware/pio
       - run: python3 tools/prepare_web_flasher.py --env m5stick_c --tag ci --output-dir build/web-flasher/m5stick_c
+      - run: python3 tools/prepare_web_flasher.py --env m5stick_c_hid --tag ci --output-dir build/web-flasher/m5stick_c_hid

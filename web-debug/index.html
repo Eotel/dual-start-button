@@ -55,6 +55,43 @@
       <p id="startReason" class="muted"></p>
     </section>
 
+    <section class="panel hidFallback">
+      <h2>HID Keyboard Fallback</h2>
+      <div class="hidHeader">
+        <div id="hidStartCondition" class="startCondition hid ng">NOT READY</div>
+        <dl class="kv small hidFacts">
+          <dt>Mode</dt><dd>local keyboard fallback</dd>
+          <dt>Focus</dt><dd id="hidFocusStatus"></dd>
+          <dt>Capture</dt><dd id="hidCaptureStatus"></dd>
+          <dt>Last key</dt><dd id="hidLastObserved"></dd>
+        </dl>
+      </div>
+      <p class="muted hidLimit">No GATT device identity, heartbeat, disconnect detection, OTA, or device-side link.</p>
+      <div id="hidError" class="hidError" role="status" aria-live="polite"></div>
+      <div class="grid two hidSlotGrid">
+        <div>
+          <h3>HID Slot 1</h3>
+          <div id="hidSlot1State" class="slotState hid empty">未割当</div>
+          <div class="actions wrap">
+            <button id="hidCaptureSlot1Btn">Capture Slot 1</button>
+            <button id="hidClearSlot1Btn">Clear Slot 1</button>
+          </div>
+        </div>
+        <div>
+          <h3>HID Slot 2</h3>
+          <div id="hidSlot2State" class="slotState hid empty">未割当</div>
+          <div class="actions wrap">
+            <button id="hidCaptureSlot2Btn">Capture Slot 2</button>
+            <button id="hidClearSlot2Btn">Clear Slot 2</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="hidResetActiveBtn">Reset HID Active</button>
+        </div>
+      </div>
+      <p id="hidStartReason" class="muted"></p>
+    </section>
+
     <section class="panel">
       <h2>Connected Devices</h2>
       <div id="devices" class="devices"></div>
