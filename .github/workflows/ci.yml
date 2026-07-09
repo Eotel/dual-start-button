@@ -19,12 +19,6 @@ jobs:
       - uses: cachix/cachix-action@v16
         with:
           name: devenv
-      # Persist the evaluated devenv closure between runs; the devenv cachix
-      # cache only covers devenv itself, not this project's toolchain.
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.lock', 'devenv.nix') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
       - uses: actions/cache@v4
         with:
           path: |
