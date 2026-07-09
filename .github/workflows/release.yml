@@ -1,0 +1,40 @@
+name: release
+
+# Pushing a v* tag builds all four device envs and attaches the app images
+# to a GitHub Release. Keep DSB_FW_VERSION in firmware/pio/platformio.ini in
+# sync with the tag before tagging.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-esp32-${{ runner.os }}-${{ hashFiles('firmware/pio/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -e m5atom_lite -e m5stick_c -e m5stack_atoms3 -e generic_esp32_gpio -d firmware/pio
+      - name: collect firmware images
+        run: |
+          mkdir -p dist
+          for env in m5atom_lite m5stick_c m5stack_atoms3 generic_esp32_gpio; do
+            cp "firmware/pio/.pio/build/${env}/firmware.bin" \
+              "dist/dual-start-button-${env}-${GITHUB_REF_NAME}.bin"
+          done
+          (cd dist && sha256sum -- * > SHA256SUMS)
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes
