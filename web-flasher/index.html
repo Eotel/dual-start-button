@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dual Start Button Firmware Flasher</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro" aria-labelledby="title">
+        <p class="label">Dual Start Button</p>
+        <h1 id="title">Firmware Flasher</h1>
+        <p class="summary">
+          M5StickC Plus などの ESP32 デバイスへ、USB 経由で firmware を書き込みます。
+        </p>
+      </section>
+
+      <section class="tool" aria-labelledby="install-title">
+        <div class="tool-header">
+          <div>
+            <h2 id="install-title">USB Install</h2>
+            <p id="manifest-status">manifest.json を使用します。</p>
+          </div>
+          <a id="manifest-link" href="./manifest.json">manifest</a>
+        </div>
+
+        <esp-web-install-button manifest="./manifest.json">
+          <button class="install-button" slot="activate" type="button">Install firmware</button>
+          <p class="notice" slot="unsupported">
+            Web Serial 対応の Chrome または Edge で開いてください。
+          </p>
+          <p class="notice" slot="not-allowed">
+            HTTPS または localhost から開いてください。
+          </p>
+        </esp-web-install-button>
+      </section>
+
+      <section class="notes" aria-label="Notes">
+        <ol>
+          <li>デバイスを USB で接続する。</li>
+          <li>Install firmware を押し、対象 serial port を選ぶ。</li>
+          <li>書き込み後、画面に DSB 名と slot 状態が出ることを確認する。</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>

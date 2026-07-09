@@ -31,6 +31,29 @@ pio run -e m5stack_atoms3
 pio run -e generic_esp32_gpio
 ```
 
+M5StickC Plus is currently built with the `m5stick_c` env:
+
+```bash
+devenv shell -- pio run -e m5stick_c -d firmware/pio
+devenv shell -- pio run -e m5stick_c -d firmware/pio -t upload --upload-port /dev/cu.usbserial-XXXXXXXX
+devenv shell -- pio device monitor -d firmware/pio -b 115200 --port /dev/cu.usbserial-XXXXXXXX
+```
+
+### Browser USB flasher
+
+For non-developer flashing over USB, generate an ESP Web Tools bundle from a
+built PlatformIO image:
+
+```bash
+devenv shell -- pio run -e m5stick_c -d firmware/pio
+devenv shell -- python3 tools/prepare_web_flasher.py --env m5stick_c --tag local
+python3 -m http.server 18080 -d dist/web-flasher/m5stick_c
+```
+
+Open `http://localhost:18080` in Chrome or Edge and select the connected serial
+port. Hosted copies must be served over HTTPS because browser serial access
+requires a secure context.
+
 ### Debug app
 
 ```bash
@@ -93,6 +116,11 @@ git tag v0.2.0 && git push origin v0.2.0
 
 - タグを打つ前に `firmware/pio/platformio.ini` の `DSB_FW_VERSION` をタグと一致させてください(DeviceInfo が報告するバージョンの源)。
 - 添付の bin はアプリイメージ(オフセット 0x10000)で、書き込み済みデバイスの更新用です。工場出荷状態のデバイスへの初回書き込み(bootloader / partition table を含む)は `pio run -e <env> -t upload` を使ってください。
+- Release には `dual-start-button-web-flasher-m5stick_c-<tag>.zip` も添付します。これは M5StickC Plus 向けの browser USB flasher 一式です。zip を展開して HTTPS または localhost で配信すると、初回書き込みや復旧に使えます。
+
+## Update path
+
+現在の簡単な書き換え導線は、USB 接続 + browser flasher です。BLE OTA は次段階で、partition table、rollback、checksum/signature、転送中の BLE service 方針を決めてから実装します。詳細は `docs/adr/0001-firmware-update-path.md` を参照してください。
 
 ## Operational summary
 

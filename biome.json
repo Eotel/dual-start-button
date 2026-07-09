@@ -5,7 +5,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["web-debug/**", "test-vectors/**", "*.json", "!**/*.css"]
+    "includes": ["web-debug/**", "web-flasher/**", "test-vectors/**", "*.json", "!**/*.css"]
   },
   "formatter": {
     "indentStyle": "space",

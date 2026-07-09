@@ -33,6 +33,15 @@ jobs:
             cp "firmware/pio/.pio/build/${env}/firmware.bin" \
               "dist/dual-start-button-${env}-${GITHUB_REF_NAME}.bin"
           done
+      - name: package browser flasher
+        run: |
+          python3 tools/prepare_web_flasher.py \
+            --env m5stick_c \
+            --tag "${GITHUB_REF_NAME}" \
+            --output-dir "build/web-flasher/m5stick_c"
+          (cd build/web-flasher/m5stick_c && zip -r "../../../dist/dual-start-button-web-flasher-m5stick_c-${GITHUB_REF_NAME}.zip" .)
+      - name: checksum release artifacts
+        run: |
           (cd dist && sha256sum -- * > SHA256SUMS)
       - name: create release
         env:
