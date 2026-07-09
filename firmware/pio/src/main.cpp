@@ -5,6 +5,8 @@
 #include "config.h"
 #include "protocol.h"
 #include "link_control.h"
+#include "control_replay.h"
+#include "state_packet.h"
 #include "DeviceAdapter.h"
 
 using namespace dsb;
@@ -95,30 +97,23 @@ void refreshDeviceInfoCharacteristic() {
   deviceInfoChr->setValue(info.c_str());
 }
 
-uint8_t currentFlags() {
-  uint8_t flags = 0;
-  if (stablePressed) flags |= FlagPressed;
-  if (armed) flags |= FlagArmed;
-  if (linkGroupId != 0 && linkSlot != 0) flags |= FlagLinked;
-  if (stablePressed && (millis() - pressStartedAtMs >= DSB_LONG_HOLD_RESET_MS)) flags |= FlagLongPressed;
-  if (connected) flags |= FlagConnected;
-  return flags;
+RuntimeState currentRuntimeState() {
+  return RuntimeState{
+      stablePressed,
+      armed,
+      connected,
+      stablePressed && longHoldElapsed(millis(), pressStartedAtMs, DSB_LONG_HOLD_RESET_MS),
+      linkSlot,
+      linkGroupId,
+      deviceHash,
+  };
 }
 
 void publishState(StateType type, uint16_t aux = 0, bool notify = true) {
   if (!stateChr) return;
 
-  ButtonStateV1 s{};
-  s.version = PROTOCOL_VERSION;
-  s.type = static_cast<uint8_t>(type);
-  s.flags = currentFlags();
-  if (type == StateType::Error) s.flags |= FlagError;
-  s.link_slot = linkSlot;
-  s.seq = ++seq;
-  s.uptime_ms = millis();
-  s.device_hash = deviceHash;
-  s.link_group_id = linkGroupId;
-  s.aux = aux;
+  seq = nextSeq(seq);
+  const ButtonStateV1 s = makeButtonStateFields(currentRuntimeState(), type, seq, millis(), aux);
 
   uint8_t packet[BUTTON_STATE_SIZE];
   encodeButtonState(s, packet);
@@ -187,38 +182,32 @@ void updateDisplay() {
   device.showText(l1, l2, l3);
 }
 
+// Binds the hardware-free replay (control_replay.h) to the real firmware side
+// effects: module link state, NVS, the notifying characteristics, and the
+// status LED.
+class FirmwareControlEffects final : public ControlEffects {
+public:
+  void applyLinkState(const LinkState& state) override {
+    linkGroupId = state.group_id;
+    linkSlot = state.slot;
+    linkGeneration = state.generation;
+    armed = state.armed;
+  }
+  void persistLink() override { saveLink(); }
+  void refreshDeviceInfo() override { refreshDeviceInfoCharacteristic(); }
+  void emitControlResult(bool ok, uint8_t cmd, const char* error_code,
+                         const char* message) override {
+    sendControlResult(ok, cmd, error_code, message);
+  }
+  void emitButtonState(StateType type, uint16_t aux) override { publishState(type, aux, true); }
+  void blinkStatus(uint8_t r, uint8_t g, uint8_t b, uint32_t duration_ms) override {
+    device.blinkStatus(r, g, b, duration_ms);
+  }
+};
+
 void applyControlOutcome(const ControlOutcome& outcome) {
-  // Apply the resulting link state, then persist link fields if required.
-  linkGroupId = outcome.state.group_id;
-  linkSlot = outcome.state.slot;
-  linkGeneration = outcome.state.generation;
-  armed = outcome.state.armed;
-  if (outcome.persist) {
-    saveLink();
-    refreshDeviceInfoCharacteristic();
-  }
-
-  // Emit the ControlResult / ButtonState / blink in the exact order the
-  // original code did; the two notifying characteristics fire in different
-  // orders across commands. A blink_ms of 0 skips the blink.
-  switch (outcome.order) {
-    case SideEffectOrder::ResultPublishBlink:
-      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
-      publishState(outcome.publish_type, outcome.publish_aux, true);
-      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
-      break;
-    case SideEffectOrder::ResultBlinkPublish:
-      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
-      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
-      publishState(outcome.publish_type, outcome.publish_aux, true);
-      break;
-    case SideEffectOrder::BlinkPublishResult:
-      if (outcome.blink_ms) device.blinkStatus(outcome.blink_r, outcome.blink_g, outcome.blink_b, outcome.blink_ms);
-      publishState(outcome.publish_type, outcome.publish_aux, true);
-      sendControlResult(outcome.ok, outcome.cmd, outcome.error_code, outcome.message);
-      break;
-  }
-
+  FirmwareControlEffects fx;
+  replayControlOutcome(outcome, fx);
   updateStatusIndication();
 }
 
@@ -319,14 +308,13 @@ void updateButton() {
       longHoldResetTriggered = false;
       publishState(StateType::State, 0, true);
     } else {
-      const uint32_t hold = now - pressStartedAtMs;
-      lastHoldMs = static_cast<uint16_t>(hold > 65535 ? 65535 : hold);
+      lastHoldMs = saturatingHoldMs(now, pressStartedAtMs);
       publishState(StateType::State, lastHoldMs, true);
     }
     updateStatusIndication();
   }
 
-  if (stablePressed && !longHoldResetTriggered && now - pressStartedAtMs >= DSB_LONG_HOLD_RESET_MS) {
+  if (stablePressed && !longHoldResetTriggered && longHoldElapsed(now, pressStartedAtMs, DSB_LONG_HOLD_RESET_MS)) {
     longHoldResetTriggered = true;
     const LinkState current{linkGroupId, linkSlot, linkGeneration, armed};
     applyControlOutcome(makeClear(current, static_cast<uint8_t>(ControlCommand::FactoryResetLink),
@@ -338,14 +326,7 @@ void heartbeat() {
   const uint32_t now = millis();
   if (now - lastHeartbeatMs >= DSB_HEARTBEAT_MS) {
     lastHeartbeatMs = now;
-    uint16_t aux = 0;
-    if (stablePressed) {
-      const uint32_t hold = now - pressStartedAtMs;
-      aux = static_cast<uint16_t>(hold > 65535 ? 65535 : hold);
-    } else {
-      aux = lastHoldMs;
-    }
-    publishState(StateType::Heartbeat, aux, true);
+    publishState(StateType::Heartbeat, heartbeatAux(stablePressed, now, pressStartedAtMs, lastHoldMs), true);
   }
 }
 

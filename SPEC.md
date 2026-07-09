@@ -75,6 +75,7 @@ slot2.active == true
 
 ```text
 STALE_MS = 1500
+CONTROL_RESULT_TIMEOUT_MS = 3000
 HEARTBEAT_MS = 1000
 DEBOUNCE_MS = 30
 ```
@@ -384,9 +385,12 @@ The Host should not rely on BLE MAC addresses because mobile OSes may expose per
 3. Host connects and reads DeviceInfo.
 4. User assigns Device to slot 1 or slot 2.
 5. Host writes LINK command with group_id and slot.
-6. Device persists link info and notifies ButtonState type=link.
-7. Host stores device_id in local app storage.
+6. Device persists link info, notifies ControlResult, and notifies ButtonState type=link.
+7. Host matches the ControlResult to the written command (same cmd, CONTROL_RESULT_TIMEOUT_MS timeout for lost notifications).
+8. Only on ok:true, and only when the result's link_group_id/link_slot reflect the requested link (a stale ok result from a timed-out attempt may describe an earlier link), does Host store device_id in local app storage. On ok:false (e.g. link_conflict) Host leaves local storage unchanged and shows the error; for link_conflict it points the user at the force link option.
 ```
+
+A completed GATT write is delivery, not acceptance. The same discipline applies to UNLINK: local slot records are removed only after the device confirms with ok:true.
 
 ### 11.3 Replacing one device
 
