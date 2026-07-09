@@ -3,5 +3,10 @@
 [general]
 ignore=body-is-missing,body-min-length
 
+# 100 matches commitlint's conventional default and leaves room for the
+# " (#N)" suffix GitHub appends to squash-merge titles.
+[title-max-length]
+line-length=100
+
 [title-match-regex]
 regex=^(feat|fix|refactor|docs|test|chore|perf|ci)(\([\w./-]+\))?!?: [a-z0-9`]
