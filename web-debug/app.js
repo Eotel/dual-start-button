@@ -1,5 +1,6 @@
 import { INITIAL_ACTIVE, reduceActive, resetActive } from './active-state.js';
 import { confirmsLink, createResultCorrelator, describeControlError } from './control-result.js';
+import { deviceDisplayName } from './device-label.js';
 import { COMMAND, CONTROL_FLAG0, makeCommand, parseState } from './protocol.js';
 import { evaluateStartCondition } from './start-condition.js';
 
@@ -93,6 +94,20 @@ function linkedSlotsOf(deviceId) {
   if (pair.slot1?.deviceId === deviceId) slots.push(1);
   if (pair.slot2?.deviceId === deviceId) slots.push(2);
   return slots;
+}
+
+function connectedDeviceCount() {
+  let count = 0;
+  for (const entry of devices.values()) {
+    if (entry.connected) count += 1;
+  }
+  return count;
+}
+
+function slotLinkStatusText() {
+  const slot1 = pair.slot1?.deviceId ? 'slot 1 linked' : 'slot 1 empty';
+  const slot2 = pair.slot2?.deviceId ? 'slot 2 linked' : 'slot 2 empty';
+  return `${slot1}, ${slot2}`;
 }
 
 // Reset a slot's active state. When the slot's device state is already known
@@ -267,7 +282,7 @@ async function linkAsSlot(entry, slot) {
   const record = {
     deviceId: entry.info.device_id,
     deviceHash: entry.info.device_hash,
-    displayName: entry.info.name || entry.bluetoothDevice.name || entry.info.device_id,
+    displayName: deviceDisplayName(entry.info, entry.bluetoothDevice),
   };
   setSlotRecord(slot, record);
   log(`linked local slot ${slot}`, record);
@@ -300,21 +315,31 @@ function freshText(state) {
   return age <= STALE_MS ? `fresh ${age}ms` : `stale ${age}ms`;
 }
 
-function slotSummary(slot) {
+function slotContent(slot) {
   const record = slot === 1 ? pair.slot1 : pair.slot2;
   const entry = slotEntry(slot);
-  if (!record) return '<div class="slotState empty">未link</div>';
+  if (!record) return '<div class="slotEmpty">未link</div>';
   if (!entry) {
-    return `<div class="slotState empty">${escapeHtml(record.displayName || record.deviceId)}<br><small>not connected</small></div>`;
+    return `<div class="slotName">${escapeHtml(record.displayName || record.deviceId)}</div>
+      <div class="slotDeviceId">${escapeHtml(record.deviceId)}</div>
+      <div class="slotMetrics">
+        <span>connected=no</span>
+        <span>active=no</span>
+        <span>pressed=no</span>
+        <span>fresh=no state</span>
+      </div>`;
   }
   const state = entry.state;
   const okLink = state && state.linkGroupId === pair.groupId && state.linkSlot === slot;
-  return `<div class="slotState">
-    <strong>${escapeHtml(record.displayName || record.deviceId)}</strong><br>
-    <small>${escapeHtml(record.deviceId)}</small><br>
-    active=${slotActive[slot].active ? 'YES' : 'no'} / pressed=${state?.pressed ? 'YES' : 'no'} / armed=${state?.armed ? 'YES' : 'no'} / ${freshText(state)}<br>
-    device-link=${okLink ? 'ok' : 'mismatch'}
-  </div>`;
+  return `<div class="slotName">${escapeHtml(record.displayName || record.deviceId)}</div>
+    <div class="slotDeviceId">${escapeHtml(record.deviceId)}</div>
+    <div class="slotMetrics">
+      <span>active=${slotActive[slot].active ? 'YES' : 'no'}</span>
+      <span>pressed=${state?.pressed ? 'YES' : 'no'}</span>
+      <span>armed=${state?.armed ? 'YES' : 'no'}</span>
+      <span>${freshText(state)}</span>
+      <span>device-link=${okLink ? 'ok' : 'mismatch'}</span>
+    </div>`;
 }
 
 function computeStartCondition() {
@@ -330,9 +355,12 @@ function computeStartCondition() {
 }
 
 function renderDeviceCard(entry) {
-  const node = template.content.firstElementChild.cloneNode(true);
-  const title = entry.info?.name || entry.bluetoothDevice.name || entry.bluetoothDevice.id;
-  node.querySelector('.deviceTitle').textContent = title;
+  const node = entry.cardEl || template.content.firstElementChild.cloneNode(true);
+  entry.cardEl = node;
+  node.querySelector('.deviceTitle').textContent = deviceDisplayName(
+    entry.info,
+    entry.bluetoothDevice,
+  );
   const badge = node.querySelector('.connectionBadge');
   badge.textContent = entry.connected ? 'connected' : 'disconnected';
   badge.classList.toggle('ok', entry.connected);
@@ -352,35 +380,90 @@ function renderDeviceCard(entry) {
     null,
     2,
   );
+  const details = node.querySelector('details');
+  details.open = Boolean(entry.rawOpen);
+
+  if (entry.cardBound) return node;
+  entry.cardBound = true;
+
+  details.addEventListener('toggle', () => {
+    entry.rawOpen = details.open;
+  });
 
   node
     .querySelector('.linkSlot1')
-    .addEventListener('click', () => linkAsSlot(entry, 1).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => linkAsSlot(entry, 1)),
+    );
   node
     .querySelector('.linkSlot2')
-    .addEventListener('click', () => linkAsSlot(entry, 2).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => linkAsSlot(entry, 2)),
+    );
   node
     .querySelector('.unlinkDevice')
-    .addEventListener('click', () => unlinkDevice(entry).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => unlinkDevice(entry)),
+    );
   node
     .querySelector('.identifyDevice')
-    .addEventListener('click', () => identifyDevice(entry).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => identifyDevice(entry)),
+    );
   node
     .querySelector('.armDevice')
-    .addEventListener('click', () => setArmed(entry, true).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => setArmed(entry, true)),
+    );
   node
     .querySelector('.disarmDevice')
-    .addEventListener('click', () => setArmed(entry, false).catch(showError));
+    .addEventListener('click', (event) =>
+      runDeviceAction(event.currentTarget, () => setArmed(entry, false)),
+    );
   node.querySelector('.disconnectDevice').addEventListener('click', () => {
     if (entry.bluetoothDevice.gatt.connected) entry.bluetoothDevice.gatt.disconnect();
   });
   return node;
 }
 
+async function runDeviceAction(button, action) {
+  button.disabled = true;
+  try {
+    await action();
+  } catch (err) {
+    showError(err);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderSlot(slot) {
+  const el = $(`#slot${slot}State`);
+  const record = slot === 1 ? pair.slot1 : pair.slot2;
+  el.classList.toggle('empty', !record);
+  el.innerHTML = slotContent(slot);
+}
+
+function renderDevices() {
+  const currentNodes = new Set();
+  for (const entry of devices.values()) {
+    const node = renderDeviceCard(entry);
+    currentNodes.add(node);
+    if (node.parentElement !== devicesEl) {
+      devicesEl.appendChild(node);
+    }
+  }
+  for (const node of [...devicesEl.children]) {
+    if (!currentNodes.has(node)) node.remove();
+  }
+}
+
 function render() {
   $('#groupIdText').textContent = String(pair.groupId >>> 0);
-  $('#slot1State').outerHTML = `<div id="slot1State">${slotSummary(1)}</div>`;
-  $('#slot2State').outerHTML = `<div id="slot2State">${slotSummary(2)}</div>`;
+  $('#connectedCount').textContent = String(connectedDeviceCount());
+  $('#slotLinkStatus').textContent = slotLinkStatusText();
+  renderSlot(1);
+  renderSlot(2);
 
   const condition = computeStartCondition();
   const conditionEl = $('#startCondition');
@@ -389,10 +472,7 @@ function render() {
   conditionEl.classList.toggle('ng', !condition.ok);
   $('#startReason').textContent = condition.reason;
 
-  devicesEl.innerHTML = '';
-  for (const entry of devices.values()) {
-    devicesEl.appendChild(renderDeviceCard(entry));
-  }
+  renderDevices();
 }
 
 function escapeHtml(value) {
@@ -443,7 +523,7 @@ function init() {
 
   savePair();
   render();
-  setInterval(render, 250);
+  setInterval(render, 1000);
 }
 
 init();
