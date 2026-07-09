@@ -369,7 +369,7 @@ devenv test    # run every check (lint, format, tests, static analysis) on all f
 Hook stages:
 
 ```text
-pre-commit   nixfmt, ruff + ruff-format, biome, clang-format, hygiene checks, actionlint, ripsecrets
+pre-commit   nixfmt, ruff + ruff-format, biome (js/json), clang-format, hygiene checks, actionlint, ripsecrets
 commit-msg   gitlint: conventional commits (feat/fix/refactor/docs/test/chore/perf/ci), lowercase subject
 pre-push     pytest tools/, node --test (web-debug), pio test -e native, pio check (cppcheck)
 ```

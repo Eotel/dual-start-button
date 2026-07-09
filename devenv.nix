@@ -3,9 +3,8 @@
 let
   # pytest and PlatformIO live in the devenv-managed venv (created on shell
   # entry), so hooks work from any shell once `devenv shell` has run at least
-  # once. Upstream pip PlatformIO is used instead of pkgs.platformio-core
-  # because the nixpkgs package patches tool resolution and cannot find the
-  # host compiler for the native test env; pip also matches what CI installs.
+  # once. pip supplies PlatformIO so local hooks run the same distribution CI
+  # installs (pkgs.platformio-core also works with the compiler shim below).
   venvBin = "${config.devenv.state}/venv/bin";
 
   # PlatformIO's native env compiles host tests with `gcc`/`g++`. Inside the
