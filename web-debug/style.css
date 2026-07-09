@@ -33,6 +33,11 @@ header h1 {
   gap: 16px;
 }
 
+.grid.two > .actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .actions {
   display: flex;
   align-items: center;

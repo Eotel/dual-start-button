@@ -7,7 +7,7 @@ Host: smartphone app / debug Web Bluetooth app
 
 ## 1. Goal
 
-複数台のM5Stack系デバイスをBLE Peripheralとして動作させる。ホストアプリは任意のn台から2台を選び、2台の押下状態が同時に有効になったときにアプリ開始条件を満たす。
+複数台のM5Stack系デバイスをBLE Peripheralとして動作させる。ホストアプリは任意のn台から2台を選ぶ。各ボタンは一度押すとホスト側のactive状態がtrueになり、もう一度押すとfalseに戻る。2台のactiveが両方trueになったときにアプリ開始条件を満たす。同時押しは不要。
 
 この仕様では、ボタンデバイスを「A用」「B用」として固定しない。各デバイスは安定した `device_id` を持つ汎用ボタンPeripheralであり、ホスト側が任意の2台を `slot 1` / `slot 2` としてlinkする。
 
@@ -30,6 +30,7 @@ Host: smartphone app / debug Web Bluetooth app
 | Group | Hostが生成する32-bitのlink group ID。2台のデバイスを同じペアとして扱うための識別子 |
 | Armed | Hostが開始判定に使ってよい状態 |
 | Pressed | 物理ボタンが現在押されている状態 |
+| Active | Host側で導出するトグル状態。pressedのdown-edgeを観測するたびに反転する。wire上には存在しない |
 
 ## 4. Design decisions
 
@@ -52,7 +53,7 @@ Host: smartphone app / debug Web Bluetooth app
 
 ### 4.3 Press eventではなくstate synchronization
 
-Hostはイベント列だけではなく、各Deviceの現在状態を持つ。
+Hostはイベント列だけではなく、各Deviceの現在状態を持つ。Hostは観測したpressedのdown-edge（false→true遷移）ごとに、そのDeviceをlinkしているslotのactiveを反転させる。
 
 開始条件は次のように定義する。
 
@@ -61,19 +62,19 @@ slot1.connected == true
 slot2.connected == true
 slot1.armed == true
 slot2.armed == true
-slot1.pressed == true
-slot2.pressed == true
 slot1.last_received_at <= STALE_MS
 slot2.last_received_at <= STALE_MS
-両方pressed状態が CONFIRM_HOLD_MS 以上継続
+slot1.active == true
+slot2.active == true
 => start condition satisfied
 ```
+
+同時押しは不要。各ボタンは一度押すとactive=true、もう一度押すとactive=falseになる。
 
 初期推奨値:
 
 ```text
 STALE_MS = 1500
-CONFIRM_HOLD_MS = 300
 CONTROL_RESULT_TIMEOUT_MS = 3000
 HEARTBEAT_MS = 1000
 DEBOUNCE_MS = 30
@@ -442,7 +443,12 @@ type ButtonRuntimeState = {
   armed: boolean;
   seq: number;
   lastReceivedAt: number;
-  pressedSince?: number;
+};
+
+// Host-derived Active per slot. Not on the wire.
+type SlotActive = {
+  active: boolean;
+  prevPressed: boolean | null; // null until the first observed sample (baseline)
 };
 ```
 
@@ -450,26 +456,49 @@ Recommended logic:
 
 ```ts
 const STALE_MS = 1500;
-const CONFIRM_HOLD_MS = 300;
 
-function canStart(now: number, a: ButtonRuntimeState, b: ButtonRuntimeState): boolean {
+// Reset: seed the baseline from the last known pressed value when the slot's
+// device state is available (connected and received); otherwise unknown.
+function resetActive(prevPressed: boolean | null = null): SlotActive {
+  return { active: false, prevPressed };
+}
+
+const INITIAL_ACTIVE: SlotActive = resetActive();
+
+// Feed every observed ButtonState sample of the device linked to the slot.
+function reduceActive(tracker: SlotActive, pressed: boolean): SlotActive {
+  const downEdge = tracker.prevPressed === false && pressed === true;
+  return { active: downEdge ? !tracker.active : tracker.active, prevPressed: pressed };
+}
+
+function canStart(
+  now: number,
+  a: ButtonRuntimeState,
+  b: ButtonRuntimeState,
+  aActive: boolean,
+  bActive: boolean,
+): boolean {
   if (!a.connected || !b.connected) return false;
   if (!a.armed || !b.armed) return false;
-  if (!a.pressed || !b.pressed) return false;
   if (now - a.lastReceivedAt > STALE_MS) return false;
   if (now - b.lastReceivedAt > STALE_MS) return false;
-
-  const since = Math.max(a.pressedSince ?? now, b.pressedSince ?? now);
-  return now - since >= CONFIRM_HOLD_MS;
+  return aActive && bActive;
 }
 ```
+
+Active rules:
+
+- baselineが未知（`prevPressed = null`）の場合、最初に観測したサンプルはbaselineでありトグルしない。接続時に押しっぱなしのボタンでactiveは変化しない。
+- disconnect / unlink / (force) relink / new group作成 / 手動リセットで、そのslotのactiveを`resetActive(...)`に戻す。その時点でslotのデバイス状態が既知（connectedかつstate受信済み）なら、baselineを現在の`pressed`でseedする。これにより、リセットやrelinkの直後の押下もトグルとして扱われる。状態が未知（disconnect等）ならbaselineはnull。
+- staleはactiveを保持したまま開始をブロックし、freshに戻れば判定に復帰する。
+- down通知を1回失っても、押下が継続していれば次のheartbeatのpressed=trueがdown-edgeとして観測される。downとupの両方を失った短い押下は取りこぼしうるため、hostは手動のactiveリセット操作を回復手段として提供する。
 
 On disconnect:
 
 ```text
 connected=false
 pressed=false
-pressedSince=undefined
+active=false（baselineもクリア）
 ```
 
 ## 13. Reconnection policy
@@ -562,8 +591,9 @@ Purpose:
 - Subscribe ButtonState notifications.
 - Link any connected device to slot 1/2.
 - Unlink or force relink devices.
-- Display live pressed/armed/stale state.
+- Display live active/pressed/armed/stale state.
 - Show whether the two selected slots satisfy the start condition.
+- Reset the host-side active state manually.
 
 Run locally:
 
@@ -605,13 +635,19 @@ Web Bluetooth requires a compatible browser and a secure context. `localhost` is
 |---|---|
 | Add Device | Device card appears |
 | Add 3+ Devices | All connected cards visible |
-| Link one to slot1 | Slot1 shows selected device |
-| Link another to slot2 | Slot2 shows selected device |
-| Press only slot1 | Start condition false |
-| Press both | Start condition true after confirm hold |
-| Release one | Start condition false |
-| Disconnect one | Start condition false and stale/connected state shown |
-| Force relink | Device moves to selected slot |
+| Link one to slot1 | Slot1 shows selected device, active=no |
+| Link another to slot2 | Slot2 shows selected device, active=no |
+| Press slot1 once | Slot1 active=YES, start condition false |
+| Press slot1 again | Slot1 active=no, start condition false |
+| Press slot1 once, then slot2 once | Both active=YES, start condition true（同時押し不要） |
+| Release both buttons | Start condition remains true（activeは保持） |
+| Press slot1 again while ready | Slot1 active=no, start condition false |
+| Reset Active | Both slots active=no, start condition false |
+| Press immediately after Reset Active | Slot becomes active（baselineは既知のstateからseed済み） |
+| Hold button while connecting | First observed state is a baseline, no toggle |
+| Disconnect one active slot | Its active resets, start condition false, stale/connected state shown |
+| Reconnect and press once | Slot becomes active again |
+| Force relink | Device moves to selected slot, that slot's active resets |
 
 ### 17.3 Field operation checks
 

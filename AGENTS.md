@@ -11,7 +11,8 @@ The core product behavior is:
 ```text
 Any number of supported M5Stack-family devices can be discovered by the host.
 The host chooses two devices and links them to logical slot 1 and slot 2.
-The application start condition becomes true only when both linked slots are connected, armed, fresh, and pressed at the same time for the confirmation window.
+Each press of a linked button toggles that slot's host-derived active state.
+The application start condition becomes true only when both linked slots are connected, armed, fresh, and active. Simultaneous pressing is not required.
 ```
 
 Do not reintroduce fixed A/B device roles. Devices are generic peripherals with stable `device_id`; slot assignment is a host-level link operation.
@@ -296,7 +297,10 @@ subscribe to ButtonState and ControlResult
 read ButtonState immediately after subscription
 allow link/unlink/force link/force unlink
 persist local pair metadata for convenience only
+toggle a slot's active state on each observed press down-edge
+treat the first observed state after (re)connect as a baseline, never a toggle
 treat disconnect as not pressed
+reset a slot's active whenever its device binding or connection changes (disconnect, unlink, relink, new group), seeding the baseline from the slot's last known pressed state when available
 treat stale state as invalid for start
 ```
 
@@ -311,18 +315,18 @@ slot1 connected
 slot2 connected
 slot1 armed
 slot2 armed
-slot1 pressed
-slot2 pressed
 slot1 fresh
 slot2 fresh
-both pressed for CONFIRM_HOLD_MS
+slot1 active
+slot2 active
 ```
+
+Active is host-derived: each observed press down-edge of the linked device toggles it. Simultaneous pressing is not required.
 
 Default host constants:
 
 ```text
 STALE_MS = 1500
-CONFIRM_HOLD_MS = 300
 CONTROL_RESULT_TIMEOUT_MS = 3000
 ```
 
@@ -344,12 +348,13 @@ Manual validation checklist:
 5. Link any two devices to slot 1 and slot 2.
 6. Verify each device reports DeviceInfo and ButtonState.
 7. Press each button independently and verify pressed state changes.
-8. Press both buttons and verify start condition becomes true only after the confirmation window.
-9. Unlink one slot and verify start condition becomes false.
-10. Force link a different device into the same slot and verify replacement works.
-11. Disconnect a linked device and verify its slot becomes not pressed/stale.
-12. Reconnect and verify the host reads current ButtonState after subscribing.
-13. Long-hold reset a device and verify only link state is cleared.
+8. Press each linked button once and verify its slot toggles to active; press again and verify it toggles back off.
+9. Toggle both slots active and verify the start condition becomes true without simultaneous pressing.
+10. Unlink one slot and verify start condition becomes false.
+11. Force link a different device into the same slot and verify replacement works and that slot's active resets.
+12. Disconnect a linked device and verify its slot becomes not pressed/stale and its active resets.
+13. Reconnect and verify the host reads current ButtonState after subscribing.
+14. Long-hold reset a device and verify only link state is cleared.
 ```
 
 ## Coding style
