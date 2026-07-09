@@ -31,6 +31,11 @@ jobs:
             pio-native-${{ runner.os }}-
       - name: install devenv.sh
         run: nix profile install nixpkgs#devenv
+      # Single serial evaluation first: on a fresh store, devenv test's
+      # parallel evaluations intermittently race on registering eval-time
+      # store paths ("path '...-builder.sh' is not valid").
+      - name: build shell
+        run: devenv shell -- true
       - name: run all hooks on all files
         run: devenv test
       - name: gitlint over PR commits
