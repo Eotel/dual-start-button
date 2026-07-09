@@ -1,0 +1,7 @@
+# Commit message rules: conventional commits with this repo's type set and a
+# lowercase subject (commitlint subject-case equivalent).
+[general]
+ignore=body-is-missing,body-min-length
+
+[title-match-regex]
+regex=^(feat|fix|refactor|docs|test|chore|perf|ci)(\([\w./-]+\))?!?: [a-z0-9`]

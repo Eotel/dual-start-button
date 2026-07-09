@@ -2,10 +2,11 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
+
 #include "config.h"
 
 class DeviceAdapter {
-public:
+ public:
   void begin();
   void update();
   bool readButtonPressed();
@@ -14,7 +15,7 @@ public:
   void showText(const String& line1, const String& line2 = "", const String& line3 = "");
   const char* modelName() const { return DSB_TARGET_NAME; }
 
-private:
+ private:
   uint32_t blinkUntilMs_ = 0;
   uint8_t blinkR_ = 0;
   uint8_t blinkG_ = 0;

@@ -15,6 +15,7 @@ It runs two ways:
 
 The generated header lives under test/generated/ and is git-ignored.
 """
+
 import json
 import os
 
@@ -44,7 +45,7 @@ def _button_state_rows(cases):
         e = c["expect"]
         literal, _ = _bytes_literal(c["hex"])
         rows.append(
-            "  {{ \"{name}\", {bytes}, {version}, {type}, {flags}, {link_slot}, "
+            '  {{ "{name}", {bytes}, {version}, {type}, {flags}, {link_slot}, '
             "{seq}, {uptime_ms}u, {device_hash}u, {link_group_id}u, {aux} }},".format(
                 name=c["name"], bytes=literal, **e
             )
@@ -58,7 +59,7 @@ def _control_rows(cases):
         e = c["expect"]
         literal, _ = _bytes_literal(c["hex"])
         rows.append(
-            "  {{ \"{name}\", {bytes}, {version}, {command}, {slot}, {flags}, "
+            '  {{ "{name}", {bytes}, {version}, {command}, {slot}, {flags}, '
             "{group_id}u, {value}u }},".format(name=c["name"], bytes=literal, **e)
         )
     return rows

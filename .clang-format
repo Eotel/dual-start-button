@@ -1,0 +1,7 @@
+# Matches the existing firmware style: Google base (2-space indent, attached
+# braces) with left-aligned pointers and a generous line length to avoid churn.
+BasedOnStyle: Google
+ColumnLimit: 120
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline

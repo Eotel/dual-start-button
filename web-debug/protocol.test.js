@@ -1,10 +1,10 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-import { COMMAND, FLAG, CONTROL_FLAG0, parseState, makeCommand } from './protocol.js';
+import { COMMAND, CONTROL_FLAG0, FLAG, makeCommand, parseState } from './protocol.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -25,9 +25,7 @@ function hexToDataView(hex) {
 }
 
 function bytesToHex(buffer) {
-  return [...new Uint8Array(buffer)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 test('protocol constants match the wire flag/command layout', () => {

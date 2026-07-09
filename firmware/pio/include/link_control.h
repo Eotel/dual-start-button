@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "protocol.h"
 
@@ -49,14 +49,14 @@ struct ControlOutcome {
   uint8_t blink_r;
   uint8_t blink_g;
   uint8_t blink_b;
-  uint32_t blink_ms;       // status blink duration; 0 = no blink
+  uint32_t blink_ms;  // status blink duration; 0 = no blink
   SideEffectOrder order;
 };
 
 // All rejects share the orange error blink, Error publish type, and R,P,B
 // ordering; only the aux code and blink duration vary.
-inline ControlOutcome makeReject(const LinkState& current, uint8_t cmd, const char* code,
-                                 const char* message, uint16_t aux, uint32_t blink_ms) {
+inline ControlOutcome makeReject(const LinkState& current, uint8_t cmd, const char* code, const char* message,
+                                 uint16_t aux, uint32_t blink_ms) {
   ControlOutcome o{};
   o.ok = false;
   o.cmd = cmd;
@@ -101,8 +101,7 @@ inline ControlOutcome makeClear(const LinkState& current, uint8_t cmd, const cha
 inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const LinkState& current) {
   ControlCommandV1 cmd{};
   if (!decodeControlCommand(data, len, cmd)) {
-    return makeReject(current, 0, "invalid_packet",
-                      "control command must be 12 bytes and version=1", 1, 1200);
+    return makeReject(current, 0, "invalid_packet", "control command must be 12 bytes and version=1", 1, 1200);
   }
 
   const bool force = (cmd.flags & ControlFlag0) != 0;
@@ -115,16 +114,14 @@ inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const Lin
   switch (static_cast<ControlCommand>(cmd.command)) {
     case ControlCommand::Link: {
       if (cmd.group_id == 0) {
-        return makeReject(current, commandValue, "invalid_group",
-                          "LINK requires nonzero group_id", 2, 1200);
+        return makeReject(current, commandValue, "invalid_group", "LINK requires nonzero group_id", 2, 1200);
       }
       if (cmd.slot != 1 && cmd.slot != 2) {
-        return makeReject(current, commandValue, "invalid_slot",
-                          "LINK requires slot 1 or 2", 3, 1200);
+        return makeReject(current, commandValue, "invalid_slot", "LINK requires slot 1 or 2", 3, 1200);
       }
       if (current.group_id != 0 && current.group_id != cmd.group_id && !force) {
-        return makeReject(current, commandValue, "link_conflict",
-                          "already linked to another group; use force", 4, 1500);
+        return makeReject(current, commandValue, "link_conflict", "already linked to another group; use force", 4,
+                          1500);
       }
       o.ok = true;
       o.error_code = nullptr;
@@ -151,13 +148,12 @@ inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const Lin
         o.persist = false;
         o.publish_type = StateType::Link;
         o.publish_aux = 0;
-        o.blink_ms = 0;  // no blink
+        o.blink_ms = 0;                                 // no blink
         o.order = SideEffectOrder::ResultPublishBlink;  // R, P (blink skipped)
         return o;
       }
       if (cmd.group_id != 0 && cmd.group_id != current.group_id && !force) {
-        return makeReject(current, commandValue, "link_conflict",
-                          "linked to different group; use force", 5, 1500);
+        return makeReject(current, commandValue, "link_conflict", "linked to different group; use force", 5, 1500);
       }
       return makeClear(current, commandValue, "unlinked");
     }
@@ -197,15 +193,13 @@ inline ControlOutcome evaluateControl(const uint8_t* data, size_t len, const Lin
 
     case ControlCommand::FactoryResetLink: {
       if (!force) {
-        return makeReject(current, commandValue, "force_required",
-                          "FACTORY_RESET_LINK requires force flag", 6, 1500);
+        return makeReject(current, commandValue, "force_required", "FACTORY_RESET_LINK requires force flag", 6, 1500);
       }
       return makeClear(current, commandValue, "factory reset link done");
     }
 
     default:
-      return makeReject(current, commandValue, "unknown_command",
-                        "unsupported control command", 7, 1200);
+      return makeReject(current, commandValue, "unknown_command", "unsupported control command", 7, 1200);
   }
 }
 

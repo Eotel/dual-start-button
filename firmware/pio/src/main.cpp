@@ -1,13 +1,13 @@
 #include <Arduino.h>
-#include <Preferences.h>
 #include <NimBLEDevice.h>
+#include <Preferences.h>
 
-#include "config.h"
-#include "protocol.h"
-#include "link_control.h"
-#include "control_replay.h"
-#include "state_packet.h"
 #include "DeviceAdapter.h"
+#include "config.h"
+#include "control_replay.h"
+#include "link_control.h"
+#include "protocol.h"
+#include "state_packet.h"
 
 using namespace dsb;
 
@@ -46,7 +46,8 @@ uint32_t lastUiUpdateMs = 0;
 String hexDeviceIdFromEfuse() {
   const uint64_t mac = ESP.getEfuseMac();
   char buf[13];
-  snprintf(buf, sizeof(buf), "%04X%08X", static_cast<uint16_t>((mac >> 32) & 0xffff), static_cast<uint32_t>(mac & 0xffffffff));
+  snprintf(buf, sizeof(buf), "%04X%08X", static_cast<uint16_t>((mac >> 32) & 0xffff),
+           static_cast<uint32_t>(mac & 0xffffffff));
   return String(buf);
 }
 
@@ -99,12 +100,9 @@ void refreshDeviceInfoCharacteristic() {
 
 RuntimeState currentRuntimeState() {
   return RuntimeState{
-      stablePressed,
-      armed,
-      connected,
-      stablePressed && longHoldElapsed(millis(), pressStartedAtMs, DSB_LONG_HOLD_RESET_MS),
-      linkSlot,
-      linkGroupId,
+      stablePressed, armed,
+      connected,     stablePressed && longHoldElapsed(millis(), pressStartedAtMs, DSB_LONG_HOLD_RESET_MS),
+      linkSlot,      linkGroupId,
       deviceHash,
   };
 }
@@ -122,8 +120,8 @@ void publishState(StateType type, uint16_t aux = 0, bool notify = true) {
     stateChr->notify();
   }
 
-  Serial.printf("state type=%u flags=0x%02x slot=%u group=%lu seq=%u aux=%u\n",
-                s.type, s.flags, s.link_slot, static_cast<unsigned long>(s.link_group_id), s.seq, s.aux);
+  Serial.printf("state type=%u flags=0x%02x slot=%u group=%lu seq=%u aux=%u\n", s.type, s.flags, s.link_slot,
+                static_cast<unsigned long>(s.link_group_id), s.seq, s.aux);
 }
 
 void sendControlResult(bool ok, uint8_t cmd, const char* code, const char* message) {
@@ -161,13 +159,13 @@ void sendControlResult(bool ok, uint8_t cmd, const char* code, const char* messa
 
 void updateStatusIndication() {
   if (stablePressed) {
-    device.setStatusRgb(64, 0, 0); // red
+    device.setStatusRgb(64, 0, 0);  // red
   } else if (linkGroupId != 0 && linkSlot != 0 && armed) {
-    device.setStatusRgb(0, 48, 0); // green
+    device.setStatusRgb(0, 48, 0);  // green
   } else if (connected) {
-    device.setStatusRgb(0, 0, 48); // blue
+    device.setStatusRgb(0, 0, 48);  // blue
   } else {
-    device.setStatusRgb(0, 0, 16); // dim blue
+    device.setStatusRgb(0, 0, 16);  // dim blue
   }
 }
 
@@ -186,7 +184,7 @@ void updateDisplay() {
 // effects: module link state, NVS, the notifying characteristics, and the
 // status LED.
 class FirmwareControlEffects final : public ControlEffects {
-public:
+ public:
   void applyLinkState(const LinkState& state) override {
     linkGroupId = state.group_id;
     linkSlot = state.slot;
@@ -195,8 +193,7 @@ public:
   }
   void persistLink() override { saveLink(); }
   void refreshDeviceInfo() override { refreshDeviceInfoCharacteristic(); }
-  void emitControlResult(bool ok, uint8_t cmd, const char* error_code,
-                         const char* message) override {
+  void emitControlResult(bool ok, uint8_t cmd, const char* error_code, const char* message) override {
     sendControlResult(ok, cmd, error_code, message);
   }
   void emitButtonState(StateType type, uint16_t aux) override { publishState(type, aux, true); }
@@ -218,7 +215,7 @@ void handleControlBytes(const uint8_t* data, size_t len) {
 }
 
 class ServerCallbacks final : public NimBLEServerCallbacks {
-public:
+ public:
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
     (void)pServer;
     (void)connInfo;
@@ -239,7 +236,7 @@ public:
 };
 
 class ControlCallbacks final : public NimBLECharacteristicCallbacks {
-public:
+ public:
   void onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) override {
     (void)connInfo;
     std::string value = characteristic->getValue();
@@ -256,26 +253,16 @@ void setupBle() {
 
   NimBLEService* service = server->createService(DSB_SERVICE_UUID);
 
-  deviceInfoChr = service->createCharacteristic(
-    DSB_DEVICE_INFO_UUID,
-    NIMBLE_PROPERTY::READ
-  );
+  deviceInfoChr = service->createCharacteristic(DSB_DEVICE_INFO_UUID, NIMBLE_PROPERTY::READ);
 
-  stateChr = service->createCharacteristic(
-    DSB_BUTTON_STATE_UUID,
-    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
-  );
+  stateChr = service->createCharacteristic(DSB_BUTTON_STATE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
 
-  NimBLECharacteristic* controlChr = service->createCharacteristic(
-    DSB_CONTROL_UUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
-  );
+  NimBLECharacteristic* controlChr =
+      service->createCharacteristic(DSB_CONTROL_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
   controlChr->setCallbacks(new ControlCallbacks());
 
-  controlResultChr = service->createCharacteristic(
-    DSB_CONTROL_RESULT_UUID,
-    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
-  );
+  controlResultChr =
+      service->createCharacteristic(DSB_CONTROL_RESULT_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   controlResultChr->setValue("{\"v\":1,\"ok\":true,\"message\":\"boot\"}");
 
   refreshDeviceInfoCharacteristic();
@@ -317,8 +304,8 @@ void updateButton() {
   if (stablePressed && !longHoldResetTriggered && longHoldElapsed(now, pressStartedAtMs, DSB_LONG_HOLD_RESET_MS)) {
     longHoldResetTriggered = true;
     const LinkState current{linkGroupId, linkSlot, linkGeneration, armed};
-    applyControlOutcome(makeClear(current, static_cast<uint8_t>(ControlCommand::FactoryResetLink),
-                                  "long hold reset link done"));
+    applyControlOutcome(
+        makeClear(current, static_cast<uint8_t>(ControlCommand::FactoryResetLink), "long hold reset link done"));
   }
 }
 
@@ -330,7 +317,7 @@ void heartbeat() {
   }
 }
 
-} // namespace
+}  // namespace
 
 void setup() {
   Serial.begin(115200);
@@ -347,10 +334,10 @@ void setup() {
   deviceName = "DSB-" + last4(deviceId);
   loadLink();
 
-  Serial.printf("device_id=%s hash=%lu model=%s fw=%s\n",
-                deviceId.c_str(), static_cast<unsigned long>(deviceHash), DSB_TARGET_NAME, DSB_FW_VERSION);
-  Serial.printf("link_group=%lu slot=%u generation=%lu\n",
-                static_cast<unsigned long>(linkGroupId), linkSlot, static_cast<unsigned long>(linkGeneration));
+  Serial.printf("device_id=%s hash=%lu model=%s fw=%s\n", deviceId.c_str(), static_cast<unsigned long>(deviceHash),
+                DSB_TARGET_NAME, DSB_FW_VERSION);
+  Serial.printf("link_group=%lu slot=%u generation=%lu\n", static_cast<unsigned long>(linkGroupId), linkSlot,
+                static_cast<unsigned long>(linkGeneration));
 
   updateStatusIndication();
   setupBle();

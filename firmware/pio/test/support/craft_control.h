@@ -6,8 +6,8 @@
 
 #include "protocol.h"
 
-inline void craft(uint8_t out[dsb::CONTROL_COMMAND_SIZE], uint8_t command, uint8_t slot,
-                  uint8_t flags, uint32_t group_id, uint32_t value) {
+inline void craft(uint8_t out[dsb::CONTROL_COMMAND_SIZE], uint8_t command, uint8_t slot, uint8_t flags,
+                  uint32_t group_id, uint32_t value) {
   out[0] = dsb::PROTOCOL_VERSION;
   out[1] = command;
   out[2] = slot;

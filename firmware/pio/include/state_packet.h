@@ -20,8 +20,7 @@ inline uint16_t saturatingHoldMs(uint32_t now_ms, uint32_t press_started_at_ms) 
 
 // aux reported by a heartbeat: the live (saturating) hold while pressed,
 // otherwise the last completed hold.
-inline uint16_t heartbeatAux(bool pressed, uint32_t now_ms, uint32_t press_started_at_ms,
-                             uint16_t last_hold_ms) {
+inline uint16_t heartbeatAux(bool pressed, uint32_t now_ms, uint32_t press_started_at_ms, uint16_t last_hold_ms) {
   return pressed ? saturatingHoldMs(now_ms, press_started_at_ms) : last_hold_ms;
 }
 
@@ -60,8 +59,8 @@ inline uint16_t nextSeq(uint16_t seq) {
   return static_cast<uint16_t>(seq + 1);
 }
 
-inline ButtonStateV1 makeButtonStateFields(const RuntimeState& rt, StateType type,
-                                           uint16_t seq, uint32_t uptime_ms, uint16_t aux) {
+inline ButtonStateV1 makeButtonStateFields(const RuntimeState& rt, StateType type, uint16_t seq, uint32_t uptime_ms,
+                                           uint16_t aux) {
   ButtonStateV1 s{};
   s.version = PROTOCOL_VERSION;
   s.type = static_cast<uint8_t>(type);
