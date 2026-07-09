@@ -31,11 +31,25 @@ jobs:
             pio-native-${{ runner.os }}-
       - name: install devenv.sh
         run: nix profile install nixpkgs#devenv
-      # Single serial evaluation first: on a fresh store, devenv test's
-      # parallel evaluations intermittently race on registering eval-time
-      # store paths ("path '...-builder.sh' is not valid").
-      - name: build shell
-        run: devenv shell -- true
+      # On a fresh runner store, devenv evaluation intermittently fails with
+      # "path '...-builder.sh' is not valid" (upstream, unresolved:
+      # https://github.com/cachix/devenv/issues/2729). Retry, removing the
+      # orphaned store path between attempts so the re-add can succeed.
+      - name: build shell (retries devenv#2729)
+        run: |
+          for i in 1 2 3; do
+            out=$(devenv shell -- true 2>&1) && exit 0
+            echo "attempt $i failed"
+            printf '%s\n' "$out" | tail -20
+            bad=$(printf '%s\n' "$out" | grep -oE "/nix/store/[a-z0-9]{32}-[^']*' is not valid" | sed "s/' is not valid//" | head -1)
+            if [ -n "$bad" ]; then
+              echo "removing invalid store path: $bad"
+              sudo rm -rf "$bad" || true
+            fi
+            sleep 2
+          done
+          echo "devenv shell failed after 3 attempts"
+          exit 1
       - name: run all hooks on all files
         run: devenv test
       - name: gitlint over PR commits
